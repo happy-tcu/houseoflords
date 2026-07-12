@@ -195,6 +195,29 @@
   font-family: 'Montserrat', sans-serif; font-size: 11px;
   letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted);
 }
+.landing-err {
+  margin-top: 14px; font-size: 13px; color: #c0392b;
+  padding: 10px 12px; border-radius: 8px;
+  background: rgba(231,76,60,0.08); border: 1px solid rgba(231,76,60,0.20);
+  max-width: 460px;
+}
+.btn-primary:disabled { opacity: 0.6; cursor: wait; }
+.btn-primary { border: 0; cursor: pointer; font-family: inherit; }
+
+.unauth-list {
+  display: grid; gap: 12px; margin-bottom: 20px;
+}
+.unauth-list > div {
+  padding: 14px 16px; border-radius: 12px; background: var(--panel-2);
+  border: 1px solid var(--border);
+  display: grid; grid-template-columns: 90px 1fr; gap: 12px; align-items: center;
+}
+.unauth-list b {
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--brand-dark);
+}
+.unauth-list span { font-size: 13px; color: var(--muted); }
 
 /* Right-side stats card */
 .landing-card {

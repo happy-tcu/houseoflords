@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 
 function GoogleIcon() {
@@ -13,8 +14,17 @@ function GoogleIcon() {
 }
 
 export default function Home() {
-  const { status, profile } = useAuth()
+  const { status, profile, signInWithGoogle } = useAuth()
+  const nav = useNavigate()
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
   const signedIn = status === 'ready' && profile
+
+  async function onSignIn() {
+    setErr(null); setBusy(true)
+    try { await signInWithGoogle() }
+    catch (e) { setErr(e.message); setBusy(false) }
+  }
 
   return (
     <div className="landing">
@@ -50,16 +60,17 @@ export default function Home() {
 
           <div className="landing-cta">
             {signedIn ? (
-              <Link to="/me" className="btn-primary">
+              <button className="btn-primary" onClick={() => nav('/me')}>
                 <GoogleIcon /> Continue as {profile.code || profile.name || profile.email}
-              </Link>
+              </button>
             ) : (
-              <Link to="/login" className="btn-primary">
-                <GoogleIcon /> Sign in with Google
-              </Link>
+              <button className="btn-primary" onClick={onSignIn} disabled={busy}>
+                <GoogleIcon /> {busy ? 'Redirecting…' : 'Sign in with Google'}
+              </button>
             )}
             <span className="landing-cta-note">Whitelisted Google accounts only.</span>
           </div>
+          {err && <div className="landing-err">{err}</div>}
         </section>
 
         <aside className="landing-card">
