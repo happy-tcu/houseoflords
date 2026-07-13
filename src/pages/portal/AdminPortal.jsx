@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import PortalShell from '../../components/PortalShell'
 import { supabase } from '../../lib/supabase'
 import { useRealtime } from '../../lib/realtime'
+import { useAuth } from '../../lib/auth'
 import { ROUNDS as MOTION_ROUNDS } from '../../data/motions'
 
 const ROUND_STATES = ['locked', 'prep', 'debate', 'voting', 'done']
@@ -310,6 +311,8 @@ const ALL_SCHOLAR_CODES = 'ABCDEF'.split('').flatMap(c => Array.from({length:10}
 const ALL_JUDGE_CODES = Array.from({length:30}, (_,i) => `J${i+1}`)
 
 function WhitelistTab({ onMsg }) {
+  const { profile } = useAuth()
+  const myEmail = profile?.email?.toLowerCase()
   const [users, setUsers] = useState([])
   const [busy, setBusy] = useState(false)
   const [showBulk, setShowBulk] = useState(false)
@@ -434,15 +437,20 @@ function WhitelistTab({ onMsg }) {
 
       <h2 className="portal-h2">Current roster ({users.length})</h2>
       <div className="wl-list">
-        {users.map(u => (
-          <div key={u.email} className="wl-row">
-            <span className={`role-tag role-${u.role}`}>{u.role}</span>
-            <span className="wl-code">{u.code || '—'}</span>
-            <span className="wl-name">{u.name || '—'}</span>
-            <span className="wl-email">{u.email}</span>
-            <button className="wl-del" onClick={() => remove(u.email)}>×</button>
-          </div>
-        ))}
+        {users.map(u => {
+          const isSelf = u.email.toLowerCase() === myEmail
+          return (
+            <div key={u.email} className={`wl-row ${isSelf ? 'wl-self' : ''}`}>
+              <span className={`role-tag role-${u.role}`}>{u.role}</span>
+              <span className="wl-code">{u.code || '—'}</span>
+              <span className="wl-name">{u.name || '—'}{isSelf && <span className="wl-you">you</span>}</span>
+              <span className="wl-email">{u.email}</span>
+              {isSelf
+                ? <span className="wl-locked" title="You can't remove your own admin">🔒</span>
+                : <button className="wl-del" onClick={() => remove(u.email)}>×</button>}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

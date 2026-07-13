@@ -1277,4 +1277,16 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding-top: 12px; border-top: 1px dashed var(--border);
 }
+.wl-row.wl-self { background: rgba(140,198,62,0.06); border-color: rgba(140,198,62,0.35); }
+.wl-you {
+  display: inline-block; margin-left: 8px;
+  padding: 2px 6px; border-radius: 2px;
+  background: var(--brand-green); color: #fff;
+  font-family: 'Montserrat'; font-weight: 800; font-size: 9px;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.wl-locked {
+  color: var(--brand-green-2); font-size: 14px; cursor: not-allowed;
+  padding: 0 6px;
+}
 
