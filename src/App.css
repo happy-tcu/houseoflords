@@ -53,7 +53,7 @@
   padding: 12px 24px;
 }
 .dash-topbar .brand-left { display: flex; align-items: center; gap: 12px; }
-.dash-topbar img.logo { height: 40px; }
+.dash-topbar img.logo { height: 64px; }
 .dash-topbar .who {
   display: flex; align-items: center; gap: 10px;
   font-family: 'Montserrat', sans-serif; font-size: 13px; color: var(--brand-dark);
@@ -308,7 +308,7 @@
   padding: 14px 28px;
 }
 .pub-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
-.pub-brand img { height: 56px; display: block; }
+.pub-brand img { height: 88px; display: block; }
 .pub-tabs {
   display: flex; gap: 2px; margin-left: 8px; flex: 1;
   overflow-x: auto; scrollbar-width: none; min-width: 0;
