@@ -112,7 +112,7 @@ function renderInviteHtml({ email, role, name, code }: any) {
 <html><body style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; background:#f7f8fa; padding:24px; margin:0;">
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px; margin:0 auto; background:#fff; border:1px solid #e6e8ec; border-radius:4px;">
     <tr><td style="padding:28px 32px 20px 32px; border-bottom:6px solid #8cc63e;">
-      <img src="${logoUrl}" alt="Isomo" width="88" style="display:block; height:auto;">
+      <img src="${logoUrl}" alt="Isomo" width="120" style="display:block; height:auto;">
       <div style="margin-top:14px; display:inline-block; padding:4px 10px; background:rgba(140,198,62,0.15); color:#7ab332; font-size:10px; letter-spacing:2px; text-transform:uppercase; font-weight:800;">
         House of Lords
       </div>

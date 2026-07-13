@@ -308,7 +308,7 @@
   padding: 14px 28px;
 }
 .pub-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
-.pub-brand img { height: 40px; display: block; }
+.pub-brand img { height: 56px; display: block; }
 .pub-tabs {
   display: flex; gap: 2px; margin-left: 8px; flex: 1;
   overflow-x: auto; scrollbar-width: none; min-width: 0;
@@ -1549,7 +1549,7 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
   text-align: center;
 }
 .cv-logo {
-  height: 96px; width: auto; display: block; margin-bottom: 20px;
+  height: 152px; width: auto; display: block; margin-bottom: 26px;
 }
 .cv-event {
   font-family: 'Montserrat', sans-serif; font-weight: 700;
@@ -1645,7 +1645,8 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
     width: 100vw; height: 100vh; padding: 0;
   }
   .cert-v2 { padding: 24px; }
-  .cv-inner { padding: 32px 56px; }
+  .cv-inner { padding: 28px 56px; }
+  .cv-logo  { height: 132px; margin-bottom: 18px; }
   .cv-title { font-size: 54px; }
   .cv-name  { font-size: 54px; }
   .cv-citation { font-size: 15px; }
