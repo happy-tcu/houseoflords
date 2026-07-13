@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import PortalShell from '../../components/PortalShell'
+import JudgeTimer from '../../components/JudgeTimer'
 import { useAuth } from '../../lib/auth'
 import { supabase } from '../../lib/supabase'
-import { fetchRounds, fetchPairings, fetchMotions, submitBallot } from '../../lib/tournament'
+import { useRealtime } from '../../lib/realtime'
 
 const AXES = [
   { key: 'argument',   name: 'Argument',       note: 'Clarity of claim, logic, evidence.' },
@@ -11,51 +12,44 @@ const AXES = [
   { key: 'persuasion', name: 'Persuasion',     note: 'Would you vote for their side?' },
 ]
 
+const empty = () => ({
+  aff_argument: '', aff_rebuttal: '', aff_delivery: '', aff_persuasion: '', aff_note: '',
+  opp_argument: '', opp_rebuttal: '', opp_delivery: '', opp_persuasion: '', opp_note: '',
+  winner: '',
+})
+
 export default function JudgePortal() {
   const { profile } = useAuth()
-  const [rounds, setRounds] = useState([])
-  const [myRoom, setMyRoom] = useState(null) // for the current active round
-  const [motion, setMotion] = useState(null)
-  const [existing, setExisting] = useState(null)
+  const [ballot, setBallot] = useState(empty)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
-  const [ballot, setBallot] = useState(makeEmpty)
 
-  const active = rounds.find(r => r.state !== 'locked' && r.state !== 'done')
+  const { rows: rounds } = useRealtime('rounds', {}, [])
+  const active = useMemo(() => (rounds || []).find(r => r.state !== 'locked' && r.state !== 'done'), [rounds])
 
-  useEffect(() => { load() }, [profile])
+  const { rows: pairings } = useRealtime('pairings',
+    active ? { eq: { round_id: active.id } } : null,
+    [active?.id])
+  const mine = useMemo(
+    () => (pairings || []).find(p => p.judge_code === profile.code),
+    [pairings, profile?.code]
+  )
 
-  async function load() {
-    if (!profile?.code) return
-    try {
-      const rs = await fetchRounds(); setRounds(rs)
-      const a = rs.find(r => r.state !== 'locked' && r.state !== 'done')
-      if (!a) { setMyRoom(null); setMotion(null); setExisting(null); return }
-      const p = await fetchPairings(a.id)
-      const mine = p.find(x => x.judge_code === profile.code)
-      setMyRoom(mine)
-      if (a.state === 'debate' || a.state === 'voting' || a.state === 'prep') {
-        if (a.motion_id) {
-          const { data } = await supabase.from('motions').select('*').eq('id', a.motion_id).maybeSingle()
-          setMotion(data)
-        } else {
-          const ms = await fetchMotions(a.id)
-          setMotion(ms[0] || null)
-        }
-      }
-      if (mine) {
-        const { data: b } = await supabase.from('ballots').select('*')
-          .eq('round_id', a.id).eq('room', mine.room).maybeSingle()
-        setExisting(b || null)
-      }
-    } catch (e) { setMsg(`Load error: ${e.message}`) }
-  }
+  const [motion, setMotion] = useState(null)
+  useEffect(() => {
+    (async () => {
+      if (!active) { setMotion(null); return }
+      if (active.motion_id) {
+        const { data } = await supabase.from('motions').select('*').eq('id', active.motion_id).maybeSingle()
+        setMotion(data)
+      } else { setMotion(null) }
+    })()
+  }, [active?.motion_id])
 
-  function makeEmpty() {
-    return { aff_argument: '', aff_rebuttal: '', aff_delivery: '', aff_persuasion: '',
-             opp_argument: '', opp_rebuttal: '', opp_delivery: '', opp_persuasion: '',
-             winner: '' }
-  }
+  const { rows: existingList } = useRealtime('ballots',
+    active && mine ? { eq: { round_id: active.id, room: mine.room } } : null,
+    [active?.id, mine?.room])
+  const existing = existingList?.[0] || null
 
   function set(field, val) { setBallot(b => ({ ...b, [field]: val })) }
 
@@ -63,41 +57,40 @@ export default function JudgePortal() {
     e.preventDefault(); setBusy(true); setMsg(null)
     try {
       const row = {
-        round_id: active.id, room: myRoom.room, judge_code: profile.code,
-        aff_code: myRoom.aff_code, opp_code: myRoom.opp_code,
+        round_id: active.id, room: mine.room, judge_code: profile.code,
+        aff_code: mine.aff_code, opp_code: mine.opp_code,
       }
       for (const a of AXES) {
         row[`aff_${a.key}`] = Number(ballot[`aff_${a.key}`])
         row[`opp_${a.key}`] = Number(ballot[`opp_${a.key}`])
       }
       row.winner = ballot.winner
-      await submitBallot(row)
-      setMsg('Ballot submitted.'); await load()
+      row.aff_note = ballot.aff_note || null
+      row.opp_note = ballot.opp_note || null
+      const { error } = await supabase.from('ballots').insert(row)
+      if (error) throw error
+      setMsg('Ballot submitted.')
     } catch (e) { setMsg(`Error: ${e.message}`) }
     setBusy(false)
   }
 
-  if (!active) {
-    return (
-      <PortalShell title="Judge Console">
-        <div className="portal-empty">
-          <b>No active round.</b>
-          <span>Wait for admin to open a round. Your assignments will appear here.</span>
-        </div>
-      </PortalShell>
-    )
-  }
+  if (!active) return (
+    <PortalShell title="Judge Console">
+      <div className="portal-empty">
+        <b>No active round.</b>
+        <span>Wait for admin to open a round. Your assignments will appear here in real time.</span>
+      </div>
+    </PortalShell>
+  )
 
-  if (!myRoom) {
-    return (
-      <PortalShell title="Judge Console">
-        <div className="portal-empty">
-          <b>No assignment for {active.id}.</b>
-          <span>Contact an organizer if this looks wrong.</span>
-        </div>
-      </PortalShell>
-    )
-  }
+  if (!mine) return (
+    <PortalShell title="Judge Console">
+      <div className="portal-empty">
+        <b>No assignment for {active.id}.</b>
+        <span>Contact an organizer if this looks wrong.</span>
+      </div>
+    </PortalShell>
+  )
 
   const total = (s) => AXES.reduce((sum, a) => sum + (Number(ballot[`${s}_${a.key}`]) || 0), 0)
 
@@ -106,19 +99,13 @@ export default function JudgePortal() {
       {msg && <div className="portal-msg">{msg}</div>}
 
       <div className="jp-summary">
-        <div className="jp-summary-block">
-          <div className="k">Round</div><div className="v">{active.id}</div>
-        </div>
-        <div className="jp-summary-block">
-          <div className="k">Room</div><div className="v">#{myRoom.room}</div>
-        </div>
-        <div className="jp-summary-block aff">
-          <div className="k">Prop (Aff)</div><div className="v">{myRoom.aff_code}</div>
-        </div>
-        <div className="jp-summary-block opp">
-          <div className="k">Opp</div><div className="v">{myRoom.opp_code}</div>
-        </div>
+        <div className="jp-summary-block"><div className="k">Round</div><div className="v">{active.id}</div></div>
+        <div className="jp-summary-block"><div className="k">Room</div><div className="v">#{mine.room}</div></div>
+        <div className="jp-summary-block aff"><div className="k">Prop (Aff)</div><div className="v">{mine.aff_code}</div></div>
+        <div className="jp-summary-block opp"><div className="k">Opp</div><div className="v">{mine.opp_code}</div></div>
       </div>
+
+      <JudgeTimer pairing={mine} />
 
       {motion ? (
         <div className="jp-motion">
@@ -128,67 +115,67 @@ export default function JudgePortal() {
       ) : (
         <div className="portal-empty">
           <b>Motion not released yet.</b>
-          <span>You'll see it here the moment prep starts.</span>
+          <span>Admin releases it when prep starts.</span>
         </div>
       )}
 
       {existing ? (
         <div className="portal-empty ok">
-          <b>Ballot already submitted for Room #{myRoom.room}.</b>
-          <span>Winner: <b>{existing.winner === 'aff' ? myRoom.aff_code : myRoom.opp_code}</b>.
-                Aff total {['argument','rebuttal','delivery','persuasion'].reduce((s,k) => s+(existing[`aff_${k}`]||0),0)}/20.
-                Opp total {['argument','rebuttal','delivery','persuasion'].reduce((s,k) => s+(existing[`opp_${k}`]||0),0)}/20.</span>
+          <b>Ballot submitted for Room #{mine.room}.</b>
+          <span>Winner: <b>{existing.winner === 'aff' ? mine.aff_code : mine.opp_code}</b>.
+                Aff {['argument','rebuttal','delivery','persuasion'].reduce((s,k) => s+(existing[`aff_${k}`]||0),0)}/20 ·
+                Opp {['argument','rebuttal','delivery','persuasion'].reduce((s,k) => s+(existing[`opp_${k}`]||0),0)}/20.</span>
         </div>
       ) : (
-        active.state === 'voting' || active.state === 'debate' ? (
-          <form className="ballot-form" onSubmit={onSubmit}>
-            <div className="ballot-cols">
-              {['aff', 'opp'].map(side => (
-                <div key={side} className={`ballot-col2 ${side}`}>
-                  <div className="col-hd">
-                    <span className={`side-tag ${side}`}>{side === 'aff' ? 'PROP' : 'OPP'}</span>
-                    <span className="col-code">{side === 'aff' ? myRoom.aff_code : myRoom.opp_code}</span>
-                  </div>
-                  {AXES.map(a => (
-                    <label key={a.key} className="score-input-row">
-                      <span className="sr-name">{a.name}</span>
-                      <input type="number" min="0" max="5" required
-                             value={ballot[`${side}_${a.key}`]}
-                             onChange={e => set(`${side}_${a.key}`, e.target.value)} />
-                      <span className="sr-max">/ 5</span>
-                    </label>
-                  ))}
-                  <div className="col-total">Total <b>{total(side)}<small> / 20</small></b></div>
+        <form className="ballot-form" onSubmit={onSubmit}>
+          <div className="ballot-cols">
+            {['aff', 'opp'].map(side => (
+              <div key={side} className={`ballot-col2 ${side}`}>
+                <div className="col-hd">
+                  <span className={`side-tag ${side}`}>{side === 'aff' ? 'PROP' : 'OPP'}</span>
+                  <span className="col-code">{side === 'aff' ? mine.aff_code : mine.opp_code}</span>
                 </div>
-              ))}
-            </div>
-
-            <div className="winner-row">
-              <span>Winner</span>
-              <label className={`w-choice ${ballot.winner === 'aff' ? 'sel' : ''}`}>
-                <input type="radio" name="winner" value="aff" required
-                       checked={ballot.winner === 'aff'}
-                       onChange={e => set('winner', e.target.value)} />
-                PROP · {myRoom.aff_code}
-              </label>
-              <label className={`w-choice ${ballot.winner === 'opp' ? 'sel' : ''}`}>
-                <input type="radio" name="winner" value="opp"
-                       checked={ballot.winner === 'opp'}
-                       onChange={e => set('winner', e.target.value)} />
-                OPP · {myRoom.opp_code}
-              </label>
-            </div>
-
-            <button type="submit" className="btn-primary" disabled={busy}>
-              {busy ? 'Submitting…' : 'Submit ballot'}
-            </button>
-          </form>
-        ) : (
-          <div className="portal-empty">
-            <b>Ballot closed.</b>
-            <span>Wait for the debate to reach the voting stage.</span>
+                {AXES.map(a => (
+                  <label key={a.key} className="score-input-row">
+                    <span className="sr-name">{a.name}</span>
+                    <input type="number" min="0" max="5" required
+                           value={ballot[`${side}_${a.key}`]}
+                           onChange={e => set(`${side}_${a.key}`, e.target.value)} />
+                    <span className="sr-max">/ 5</span>
+                  </label>
+                ))}
+                <div className="col-total">Total <b>{total(side)}<small> / 20</small></b></div>
+                <label className="note-row">
+                  <span>Feedback (optional)</span>
+                  <textarea rows="3"
+                            value={ballot[`${side}_note`]}
+                            onChange={e => set(`${side}_note`, e.target.value)}
+                            placeholder={`One line the ${side === 'aff' ? 'Prop' : 'Opp'} speaker should hear`} />
+                </label>
+              </div>
+            ))}
           </div>
-        )
+
+          <div className="winner-row">
+            <span>Winner</span>
+            <label className={`w-choice ${ballot.winner === 'aff' ? 'sel' : ''}`}>
+              <input type="radio" name="winner" value="aff" required
+                     checked={ballot.winner === 'aff'}
+                     onChange={e => set('winner', e.target.value)} />
+              PROP · {mine.aff_code}
+            </label>
+            <label className={`w-choice ${ballot.winner === 'opp' ? 'sel' : ''}`}>
+              <input type="radio" name="winner" value="opp"
+                     checked={ballot.winner === 'opp'}
+                     onChange={e => set('winner', e.target.value)} />
+              OPP · {mine.opp_code}
+            </label>
+          </div>
+
+          <button type="submit" className="btn-primary" disabled={busy}>
+            {busy ? 'Submitting…' : 'Submit ballot'}
+          </button>
+        </form>
       )}
     </PortalShell>
   )

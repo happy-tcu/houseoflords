@@ -1,84 +1,68 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import PortalShell from '../../components/PortalShell'
+import DebaterTimer from '../../components/DebaterTimer'
 import { useAuth } from '../../lib/auth'
 import { supabase } from '../../lib/supabase'
-import { fetchRounds, fetchPairings } from '../../lib/tournament'
+import { useRealtime } from '../../lib/realtime'
 
 export default function DebaterPortal() {
   const { profile } = useAuth()
-  const [rounds, setRounds] = useState([])
-  const [assignments, setAssignments] = useState([]) // list of {round, room, side, opponent}
+  const { rows: rounds } = useRealtime('rounds', {}, [])
+  const { rows: pairings } = useRealtime('pairings', {}, [])
+  const { rows: ballots } = useRealtime('ballots', {}, [])
   const [motion, setMotion] = useState(null)
-  const [msg, setMsg] = useState(null)
 
-  const active = rounds.find(r => r.state !== 'locked' && r.state !== 'done')
+  const mine = useMemo(() => (pairings || []).filter(
+    p => p.aff_code === profile.code || p.opp_code === profile.code
+  ), [pairings, profile?.code])
 
-  useEffect(() => { load() }, [profile])
+  const active = (rounds || []).find(r => r.state !== 'locked' && r.state !== 'done')
+  const activeMine = active ? mine.find(p => p.round_id === active.id) : null
 
-  async function load() {
-    if (!profile?.code) return
-    try {
-      const rs = await fetchRounds(); setRounds(rs)
-      const out = []
-      for (const r of rs) {
-        const p = await fetchPairings(r.id)
-        const mine = p.find(x => x.aff_code === profile.code || x.opp_code === profile.code)
-        if (mine) {
-          out.push({
-            round: r,
-            room: mine.room,
-            side: mine.aff_code === profile.code ? 'Aff' : 'Opp',
-            opponent: mine.aff_code === profile.code ? mine.opp_code : mine.aff_code,
-            judge: mine.judge_code,
-          })
-        }
-      }
-      setAssignments(out)
-
-      const a = rs.find(r => r.state !== 'locked' && r.state !== 'done')
-      if (a && (a.state === 'prep' || a.state === 'debate' || a.state === 'voting')) {
-        if (a.motion_id) {
-          const { data } = await supabase.from('motions').select('*').eq('id', a.motion_id).maybeSingle()
-          setMotion(data)
-        } else {
-          const { data } = await supabase.from('motions').select('*').eq('round_id', a.id).limit(1).maybeSingle()
-          setMotion(data)
-        }
+  useEffect(() => {
+    (async () => {
+      if (!active) { setMotion(null); return }
+      if (active.motion_id) {
+        const { data } = await supabase.from('motions').select('*').eq('id', active.motion_id).maybeSingle()
+        setMotion(data)
       } else { setMotion(null) }
-    } catch (e) { setMsg(`Load error: ${e.message}`) }
-  }
+    })()
+  }, [active?.motion_id])
 
-  const activeAssignment = active ? assignments.find(a => a.round.id === active.id) : null
+  const mySide = activeMine ? (activeMine.aff_code === profile.code ? 'Aff' : 'Opp') : null
+
+  const rowsByRound = useMemo(() => {
+    const map = {}
+    for (const p of mine) map[p.round_id] = p
+    return map
+  }, [mine])
 
   return (
     <PortalShell title="Debater">
-      {msg && <div className="portal-msg">{msg}</div>}
-
       <div className="dp-code-hero">
         <div className="dp-code">{profile?.code}</div>
         <div className="dp-name">{profile?.name || profile?.email}</div>
       </div>
 
-      {active && activeAssignment ? (
+      {activeMine ? (
         <div className="dp-live">
           <div className="dp-live-top">
             <span className={`state-pill st-${active.state}`}>{active.id} · {active.state}</span>
           </div>
           <div className="dp-live-grid">
-            <div className="dp-live-block">
-              <div className="k">Your Room</div><div className="v">#{activeAssignment.room}</div>
-            </div>
-            <div className={`dp-live-block ${activeAssignment.side === 'Aff' ? 'aff' : 'opp'}`}>
+            <div className="dp-live-block"><div className="k">Your Room</div><div className="v">#{activeMine.room}</div></div>
+            <div className={`dp-live-block ${mySide === 'Aff' ? 'aff' : 'opp'}`}>
               <div className="k">Your Side</div>
-              <div className="v">{activeAssignment.side === 'Aff' ? 'PROP' : 'OPP'}</div>
+              <div className="v">{mySide === 'Aff' ? 'PROP' : 'OPP'}</div>
             </div>
             <div className="dp-live-block">
-              <div className="k">Opponent</div><div className="v">{activeAssignment.opponent}</div>
+              <div className="k">Opponent</div>
+              <div className="v">{mySide === 'Aff' ? activeMine.opp_code : activeMine.aff_code}</div>
             </div>
-            <div className="dp-live-block">
-              <div className="k">Judge</div><div className="v">{activeAssignment.judge}</div>
-            </div>
+            <div className="dp-live-block"><div className="k">Judge</div><div className="v">{activeMine.judge_code}</div></div>
           </div>
+
+          <DebaterTimer pairing={activeMine} mySide={mySide} />
 
           {motion ? (
             <div className="jp-motion" style={{marginTop: 16}}>
@@ -88,7 +72,7 @@ export default function DebaterPortal() {
           ) : (
             <div className="portal-empty">
               <b>Motion not released yet.</b>
-              <span>Sit tight — the moment the admin drops the motion, it appears here.</span>
+              <span>The moment admin drops it, it appears here.</span>
             </div>
           )}
         </div>
@@ -99,25 +83,44 @@ export default function DebaterPortal() {
         </div>
       )}
 
-      <h2 className="portal-h2">Your Schedule</h2>
+      <h2 className="portal-h2">Your Schedule &amp; Results</h2>
       <div className="dp-schedule">
-        {assignments.length === 0 && (
+        {mine.length === 0 && (
           <div className="portal-empty">
             <b>No assignments yet.</b>
-            <span>Pairings will show up once the admin publishes them.</span>
+            <span>Pairings appear once admin publishes them.</span>
           </div>
         )}
-        {assignments.map(a => (
-          <div key={a.round.id} className={`dp-row st-${a.round.state}`}>
-            <span className="dp-round">{a.round.id}</span>
-            <span className="dp-room">Room #{a.room}</span>
-            <span className={`dp-side ${a.side === 'Aff' ? 'aff' : 'opp'}`}>{a.side === 'Aff' ? 'PROP' : 'OPP'}</span>
-            <span className="dp-vs">vs</span>
-            <span className="dp-opp">{a.opponent}</span>
-            <span className="dp-judge">Judge {a.judge}</span>
-            <span className={`state-pill st-${a.round.state}`}>{a.round.state}</span>
-          </div>
-        ))}
+        {(rounds || []).map(r => {
+          const p = rowsByRound[r.id]
+          if (!p) return null
+          const mySideR = p.aff_code === profile.code ? 'Aff' : 'Opp'
+          const oppCode = mySideR === 'Aff' ? p.opp_code : p.aff_code
+          const b = (ballots || []).find(x => x.round_id === r.id && x.room === p.room)
+          const won = b ? (b.winner === (mySideR === 'Aff' ? 'aff' : 'opp')) : null
+          const myTotal = b ? ['argument','rebuttal','delivery','persuasion']
+            .reduce((s,k) => s + (b[`${mySideR === 'Aff' ? 'aff' : 'opp'}_${k}`] || 0), 0) : null
+          const myNote = b ? b[`${mySideR === 'Aff' ? 'aff' : 'opp'}_note`] : null
+
+          return (
+            <div key={r.id} className={`dp-row st-${r.state}`}>
+              <span className="dp-round">{r.id}</span>
+              <span className="dp-room">Room #{p.room}</span>
+              <span className={`dp-side ${mySideR === 'Aff' ? 'aff' : 'opp'}`}>{mySideR === 'Aff' ? 'PROP' : 'OPP'}</span>
+              <span className="dp-vs">vs</span>
+              <span className="dp-opp">{oppCode}</span>
+              <span className="dp-judge">Judge {p.judge_code}</span>
+              {b ? (
+                <span className={`dp-result ${won ? 'won' : 'lost'}`}>
+                  {won ? 'W' : 'L'} · {myTotal}/20
+                </span>
+              ) : (
+                <span className={`state-pill st-${r.state}`}>{r.state}</span>
+              )}
+              {myNote && <div className="dp-note">“{myNote}”</div>}
+            </div>
+          )
+        })}
       </div>
     </PortalShell>
   )

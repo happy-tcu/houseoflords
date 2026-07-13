@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
+import Announcements from './Announcements'
 
 export default function PortalShell({ title, children }) {
   const { profile, signOut } = useAuth()
@@ -30,6 +31,7 @@ export default function PortalShell({ title, children }) {
           {children}
         </div>
       </main>
+      <Announcements />
     </div>
   )
 }

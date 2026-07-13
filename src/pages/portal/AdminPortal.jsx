@@ -1,105 +1,342 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import PortalShell from '../../components/PortalShell'
-import { fetchRounds, fetchBallots, fetchPairings, setRoundState, ROUND_STATES, ROUNDS_ALL, PRELIM_ROUNDS } from '../../lib/tournament'
 import { supabase } from '../../lib/supabase'
+import { useRealtime } from '../../lib/realtime'
 import { ROUNDS as MOTION_ROUNDS } from '../../data/motions'
 
+const ROUND_STATES = ['locked', 'prep', 'debate', 'voting', 'done']
+
 export default function AdminPortal() {
-  const [rounds, setRounds] = useState([])
-  const [ballotsByRound, setBallotsByRound] = useState({})
-  const [pairingsCount, setPairingsCount] = useState({})
-  const [motionsByRound, setMotionsByRound] = useState({})
-  const [busy, setBusy] = useState(null)
+  const { rows: rounds } = useRealtime('rounds', {}, [])
+  const { rows: pairings } = useRealtime('pairings', {}, [])
+  const { rows: motions } = useRealtime('motions', {}, [])
+  const { rows: ballots } = useRealtime('ballots', {}, [])
+  const { rows: announcements } = useRealtime('announcements',
+    { order: { column: 'created_at', ascending: false } }, [])
+
   const [msg, setMsg] = useState(null)
+  const [tab, setTab] = useState('rounds') // rounds | motions | ballots | standings | broadcast | whitelist
 
-  useEffect(() => { load() }, [])
+  const pairingsByRound = useMemo(() => group(pairings || [], p => p.round_id), [pairings])
+  const motionsByRound  = useMemo(() => group(motions  || [], m => m.round_id), [motions])
+  const ballotsByRound  = useMemo(() => group(ballots  || [], b => b.round_id), [ballots])
 
-  async function load() {
-    try {
-      const rs = await fetchRounds()
-      setRounds(rs)
-      const bs = {}, ps = {}, ms = {}
-      for (const r of rs) {
-        const b = await fetchBallots(r.id); bs[r.id] = b
-        const p = await fetchPairings(r.id); ps[r.id] = p.length
-        const m = await supabase.from('motions').select('*').eq('round_id', r.id)
-        ms[r.id] = m.data || []
-      }
-      setBallotsByRound(bs); setPairingsCount(ps); setMotionsByRound(ms)
-    } catch (e) { setMsg(`Load error: ${e.message}`) }
-  }
-
-  async function onState(roundId, state) {
-    setBusy(roundId); setMsg(null)
-    try { await setRoundState(roundId, state); await load(); setMsg(`${roundId} → ${state}`) }
-    catch (e) { setMsg(`Error: ${e.message}`) }
-    setBusy(null)
-  }
-
-  async function seedMotionsFor(roundId) {
-    setBusy(roundId); setMsg(null)
-    try {
-      const source = MOTION_ROUNDS.find(r => r.code === roundId)
-      if (!source) throw new Error('no motion data for ' + roundId)
-      const rows = source.motions.map(m => ({ round_id: roundId, kind: m.kind, text: m.text }))
-      const { error } = await supabase.from('motions').insert(rows)
-      if (error) throw error
-      await load(); setMsg(`Seeded ${rows.length} motions for ${roundId}`)
-    } catch (e) { setMsg(`Error: ${e.message}`) }
-    setBusy(null)
-  }
-
-  const totalBallots = Object.values(ballotsByRound).reduce((s, arr) => s + arr.length, 0)
-  const expectedBallots = PRELIM_ROUNDS.length * 30
+  const totalBallots = (ballots || []).length
+  const expectedBallots = 3 * 30
+  const active = (rounds || []).find(r => r.state !== 'locked' && r.state !== 'done')
 
   return (
     <PortalShell title="Admin">
       {msg && <div className="portal-msg">{msg}</div>}
 
       <div className="portal-stat-row">
-        <div className="stat"><div className="k">Ballots in</div><div className="v">{totalBallots}<small> / {expectedBallots}</small></div></div>
-        <div className="stat"><div className="k">Active round</div><div className="v" style={{fontSize: 22}}>{rounds.find(r => r.state !== 'locked' && r.state !== 'done')?.id || '—'}</div></div>
-        <div className="stat"><div className="k">Rounds set up</div><div className="v">{rounds.filter(r => pairingsCount[r.id] > 0).length}<small> / 5</small></div></div>
-        <div className="stat"><div className="k">Motions seeded</div><div className="v">{Object.values(motionsByRound).filter(a => a.length > 0).length}<small> / 5</small></div></div>
+        <Stat k="Ballots in" v={<>{totalBallots}<small> / {expectedBallots}</small></>} />
+        <Stat k="Active round" v={active?.id || '—'} small={active?.state} />
+        <Stat k="Rounds w/ pairings" v={<>{Object.keys(pairingsByRound).length}<small> / 5</small></>} />
+        <Stat k="Rounds w/ motion set" v={<>{(rounds || []).filter(r => r.motion_id).length}<small> / 5</small></>} />
       </div>
 
-      <div className="portal-block">
-        <h2 className="portal-h2">Round Controls</h2>
-        <div className="round-controls">
-          {ROUNDS_ALL.map(rid => {
-            const r = rounds.find(x => x.id === rid) || { id: rid, state: 'locked' }
-            const b = ballotsByRound[rid] || []
-            const pcount = pairingsCount[rid] || 0
-            const mcount = (motionsByRound[rid] || []).length
-            return (
-              <div key={rid} className={`rc rc-${r.state}`}>
-                <div className="rc-top">
-                  <span className="rc-code">{rid}</span>
-                  <span className={`rc-state rc-state-${r.state}`}>{r.state}</span>
-                </div>
-                <div className="rc-meta">
-                  <span>Pairings: <b>{pcount}</b></span>
-                  <span>Motions: <b>{mcount}</b></span>
-                  <span>Ballots: <b>{b.length}</b></span>
-                </div>
-                <div className="rc-actions">
-                  {mcount === 0 && (
-                    <button onClick={() => seedMotionsFor(rid)} disabled={busy === rid}>Seed motions</button>
-                  )}
-                  {ROUND_STATES.map(st => (
-                    st !== r.state && (
-                      <button key={st} onClick={() => onState(rid, st)} disabled={busy === rid}
-                              className={`rc-btn rc-btn-${st}`}>
-                        → {st}
-                      </button>
-                    )
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
+      <div className="admin-tabs">
+        {[
+          ['rounds', 'Round Control'],
+          ['motions', 'Motion Picker'],
+          ['ballots', 'Ballot Tracker'],
+          ['standings', 'Standings'],
+          ['broadcast', 'Announcements'],
+          ['whitelist', 'Roster'],
+        ].map(([k, l]) => (
+          <button key={k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>
+        ))}
       </div>
+
+      {tab === 'rounds' && <RoundsTab rounds={rounds || []} pairingsByRound={pairingsByRound}
+                                     motionsByRound={motionsByRound} ballotsByRound={ballotsByRound}
+                                     onMsg={setMsg} />}
+      {tab === 'motions' && <MotionsTab rounds={rounds || []} motionsByRound={motionsByRound} onMsg={setMsg} />}
+      {tab === 'ballots' && <BallotsTab rounds={rounds || []} pairingsByRound={pairingsByRound}
+                                       ballotsByRound={ballotsByRound} />}
+      {tab === 'standings' && <StandingsTab pairings={pairings || []} ballots={ballots || []} />}
+      {tab === 'broadcast' && <BroadcastTab announcements={announcements || []} onMsg={setMsg} />}
+      {tab === 'whitelist' && <WhitelistTab onMsg={setMsg} />}
     </PortalShell>
+  )
+}
+
+function Stat({ k, v, small }) {
+  return (
+    <div className="stat"><div className="k">{k}</div>
+      <div className="v">{v}{small && <small> · {small}</small>}</div>
+    </div>
+  )
+}
+
+function group(arr, keyFn) {
+  const out = {}
+  for (const x of arr) { (out[keyFn(x)] ||= []).push(x) }
+  return out
+}
+
+/* ---------------- ROUNDS ---------------- */
+function RoundsTab({ rounds, pairingsByRound, motionsByRound, ballotsByRound, onMsg }) {
+  async function setState(rid, state) {
+    onMsg(null)
+    const patch = { state }
+    if (state === 'prep')  patch.started_at = new Date().toISOString()
+    if (state === 'done')  patch.ends_at    = new Date().toISOString()
+    const { error } = await supabase.from('rounds').update(patch).eq('id', rid)
+    if (error) onMsg(error.message); else onMsg(`${rid} → ${state}`)
+  }
+  async function seedMotionsFor(rid) {
+    onMsg(null)
+    const src = MOTION_ROUNDS.find(r => r.code === rid)
+    if (!src) return onMsg(`No motion data for ${rid}`)
+    const rows = src.motions.map(m => ({ round_id: rid, kind: m.kind, text: m.text }))
+    const { error } = await supabase.from('motions').insert(rows)
+    if (error) onMsg(error.message); else onMsg(`Seeded ${rows.length} motions for ${rid}`)
+  }
+  const ALL = ['R1','R2','R3','R4','R5']
+  return (
+    <div className="round-controls">
+      {ALL.map(rid => {
+        const r = rounds.find(x => x.id === rid) || { id: rid, state: 'locked' }
+        const b = ballotsByRound[rid]?.length || 0
+        const p = pairingsByRound[rid]?.length || 0
+        const m = motionsByRound[rid]?.length || 0
+        return (
+          <div key={rid} className={`rc rc-${r.state}`}>
+            <div className="rc-top">
+              <span className="rc-code">{rid}</span>
+              <span className={`rc-state rc-state-${r.state}`}>{r.state}</span>
+            </div>
+            <div className="rc-meta">
+              <span>Pairings <b>{p}</b></span>
+              <span>Motions <b>{m}</b></span>
+              <span>Ballots <b>{b}</b></span>
+              <span>Motion set <b>{r.motion_id ? '✓' : '—'}</b></span>
+            </div>
+            <div className="rc-actions">
+              {m === 0 && <button onClick={() => seedMotionsFor(rid)}>Seed motions</button>}
+              {ROUND_STATES.map(st => st !== r.state && (
+                <button key={st} onClick={() => setState(rid, st)}>→ {st}</button>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ---------------- MOTIONS ---------------- */
+function MotionsTab({ rounds, motionsByRound, onMsg }) {
+  async function pickMotion(rid, mid) {
+    onMsg(null)
+    const { error } = await supabase.from('rounds').update({ motion_id: mid }).eq('id', rid)
+    if (error) onMsg(error.message); else onMsg(`Motion released for ${rid}`)
+  }
+  return (
+    <div className="motions-picker">
+      {(rounds || []).map(r => {
+        const ms = motionsByRound[r.id] || []
+        return (
+          <div className="mp-block" key={r.id}>
+            <div className="mp-head">
+              <span className="rc-code">{r.id}</span>
+              <span className="mp-status">{r.motion_id ? 'Motion selected' : 'None selected'}</span>
+            </div>
+            {ms.length === 0 && <div className="portal-empty"><b>No motions.</b><span>Go to Round Control → Seed motions.</span></div>}
+            {ms.map(m => {
+              const active = m.id === r.motion_id
+              return (
+                <div key={m.id} className={`mp-motion ${active ? 'active' : ''}`}>
+                  <span className="tag" style={{background: colorFor(m.kind)}}>{m.kind}</span>
+                  <p>{m.text}</p>
+                  <button className="btn-secondary" onClick={() => pickMotion(r.id, m.id)}
+                          disabled={active}>{active ? 'Selected' : 'Release this'}</button>
+                </div>
+              )
+            })}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+const colorFor = (k) => k === 'Policy' ? '#1dafec' : k === 'Value' ? '#efb34a' : '#8cc63e'
+
+/* ---------------- BALLOTS ---------------- */
+function BallotsTab({ rounds, pairingsByRound, ballotsByRound }) {
+  const PRELIMS = ['R1','R2','R3']
+  return (
+    <div className="ballot-matrix">
+      <div className="ballot-matrix-legend">
+        <span className="mchip in">Submitted</span>
+        <span className="mchip pending">Pending</span>
+      </div>
+      {PRELIMS.map(rid => {
+        const pairs = pairingsByRound[rid] || []
+        const bals  = ballotsByRound[rid] || []
+        const byRoom = new Set(bals.map(b => b.room))
+        return (
+          <div key={rid} className="bm-round">
+            <div className="bm-head">
+              <span className="rc-code">{rid}</span>
+              <span className="bm-count">{byRoom.size} / {pairs.length}</span>
+            </div>
+            <div className="bm-grid">
+              {pairs.map(p => (
+                <div key={p.id} className={`bm-cell ${byRoom.has(p.room) ? 'in' : 'pending'}`}
+                     title={`Room #${p.room} · J${p.judge_code} · ${p.aff_code} vs ${p.opp_code}`}>
+                  <span className="bm-room">#{p.room}</span>
+                  <span className="bm-judge">{p.judge_code}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ---------------- STANDINGS ---------------- */
+function StandingsTab({ pairings, ballots }) {
+  const stats = useMemo(() => {
+    const s = {}   // { code: { wins, points, appearances } }
+    for (const b of ballots) {
+      const pair = pairings.find(p => p.round_id === b.round_id && p.room === b.room)
+      if (!pair) continue
+      for (const side of ['aff','opp']) {
+        const code = side === 'aff' ? pair.aff_code : pair.opp_code
+        s[code] ||= { code, wins: 0, points: 0, appearances: 0 }
+        s[code].appearances++
+        const pts = (b[`${side}_argument`]||0) + (b[`${side}_rebuttal`]||0) + (b[`${side}_delivery`]||0) + (b[`${side}_persuasion`]||0)
+        s[code].points += pts
+        if (b.winner === side) s[code].wins++
+      }
+    }
+    return Object.values(s).sort((a, b) => b.wins - a.wins || b.points - a.points)
+  }, [pairings, ballots])
+
+  if (stats.length === 0) return <div className="portal-empty"><b>No results yet.</b><span>Standings populate as ballots come in.</span></div>
+
+  return (
+    <div className="standings">
+      <table className="fmt-table">
+        <thead><tr><th>#</th><th>Speaker</th><th>Wins</th><th>Total Points</th><th>Debates</th></tr></thead>
+        <tbody>
+          {stats.map((s, i) => (
+            <tr key={s.code} className={i < 4 ? 'top-4' : ''}>
+              <td className="rank">{i+1}</td>
+              <td className="seg">{s.code}</td>
+              <td><b>{s.wins}</b></td>
+              <td>{s.points}</td>
+              <td>{s.appearances}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="portal-hint">Top 4 advance to R4 Semi. Wins → total points as tiebreaker.</div>
+    </div>
+  )
+}
+
+/* ---------------- BROADCAST ---------------- */
+function BroadcastTab({ announcements, onMsg }) {
+  const [body, setBody] = useState('')
+  const [kind, setKind] = useState('info')
+  const [busy, setBusy] = useState(false)
+  async function send(e) {
+    e.preventDefault(); setBusy(true); onMsg(null)
+    const { error } = await supabase.from('announcements').insert({ body, kind })
+    if (error) onMsg(error.message)
+    else { setBody(''); onMsg('Broadcast sent') }
+    setBusy(false)
+  }
+  return (
+    <div className="broadcast">
+      <form onSubmit={send} className="ballot-form">
+        <label className="note-row"><span>Message</span>
+          <textarea rows="3" required value={body} onChange={e => setBody(e.target.value)}
+                    placeholder="Round starts in 5 min. Head to your rooms." />
+        </label>
+        <div className="broadcast-row">
+          <select value={kind} onChange={e => setKind(e.target.value)}>
+            <option value="info">Info</option>
+            <option value="warn">Warning</option>
+            <option value="urgent">Urgent</option>
+          </select>
+          <button className="btn-primary" disabled={busy}>{busy ? 'Sending…' : 'Send'}</button>
+        </div>
+      </form>
+
+      <h2 className="portal-h2">History</h2>
+      <div className="broadcast-list">
+        {announcements.length === 0 && <div className="portal-empty"><b>No announcements yet.</b></div>}
+        {announcements.map(a => (
+          <div key={a.id} className={`ann ann-${a.kind}`}>
+            <span className="ann-when">{new Date(a.created_at).toLocaleTimeString()}</span>
+            <span className="ann-body">{a.body}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ---------------- WHITELIST ---------------- */
+function WhitelistTab({ onMsg }) {
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [users, setUsers] = useState([])
+
+  useEffect(() => { load() }, [])
+  async function load() {
+    const { data } = await supabase.from('allowed_users').select('*').order('role').order('code')
+    setUsers(data || [])
+  }
+
+  async function bulkImport(e) {
+    e.preventDefault(); setBusy(true); onMsg(null)
+    const rows = text.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+      const [email, role, code, name] = line.split(',').map(s => s?.trim())
+      return { email: email?.toLowerCase(), role, code: code || null, name: name || null }
+    }).filter(r => r.email && r.role)
+    if (rows.length === 0) { onMsg('Nothing to import.'); setBusy(false); return }
+    const { error } = await supabase.from('allowed_users').upsert(rows, { onConflict: 'email' })
+    if (error) onMsg(error.message); else { onMsg(`Imported ${rows.length} rows`); setText(''); load() }
+    setBusy(false)
+  }
+
+  async function remove(email) {
+    if (!confirm(`Remove ${email}?`)) return
+    const { error } = await supabase.from('allowed_users').delete().eq('email', email)
+    if (error) onMsg(error.message); else load()
+  }
+
+  return (
+    <div className="whitelist">
+      <form onSubmit={bulkImport} className="ballot-form">
+        <label className="note-row"><span>Bulk import (one per line: email, role, code, name)</span>
+          <textarea rows="6" value={text} onChange={e => setText(e.target.value)}
+                    placeholder="alice@school.edu, scholar, A1, Alice K.&#10;bob@school.edu, judge, J5, Dr. Bob&#10;organizer@isomo.org, admin, ,Isomo Ops"/>
+        </label>
+        <button className="btn-primary" disabled={busy}>{busy ? 'Importing…' : 'Import / Upsert'}</button>
+      </form>
+
+      <h2 className="portal-h2">Current roster ({users.length})</h2>
+      <div className="wl-list">
+        {users.map(u => (
+          <div key={u.email} className="wl-row">
+            <span className={`role-tag role-${u.role}`}>{u.role}</span>
+            <span className="wl-code">{u.code || '—'}</span>
+            <span className="wl-name">{u.name || '—'}</span>
+            <span className="wl-email">{u.email}</span>
+            <button className="wl-del" onClick={() => remove(u.email)}>×</button>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
