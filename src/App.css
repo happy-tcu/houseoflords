@@ -785,6 +785,11 @@ table.round-fmt td.note { color: var(--muted); font-size: 13px; }
 }
 .rc-actions button:hover { background: var(--panel); }
 .rc-actions button:disabled { opacity: 0.5; cursor: wait; }
+.rc-actions .rc-reset {
+  background: rgba(231,76,60,0.08); color: #c0392b; border-color: rgba(231,76,60,0.3);
+  margin-left: auto;
+}
+.rc-actions .rc-reset:hover { background: rgba(231,76,60,0.15); }
 
 /* Judge portal — ballot */
 .jp-summary {

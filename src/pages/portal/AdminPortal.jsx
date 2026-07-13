@@ -87,6 +87,12 @@ function RoundsTab({ rounds, pairingsByRound, motionsByRound, ballotsByRound, on
     const { error } = await supabase.from('rounds').update(patch).eq('id', rid)
     if (error) onMsg(error.message); else onMsg(`${rid} → ${state}`)
   }
+  async function resetRound(rid) {
+    if (!confirm(`Reset ${rid}?\n\nThis wipes ALL ballots, timer state, strikes, and motions for ${rid}. Pairings stay.`)) return
+    onMsg(null)
+    const { error } = await supabase.rpc('reset_round', { p_round: rid })
+    if (error) onMsg(error.message); else onMsg(`${rid} reset — clean slate.`)
+  }
   async function seedMotionsFor(rid) {
     onMsg(null)
     const src = MOTION_ROUNDS.find(r => r.code === rid)
@@ -120,6 +126,7 @@ function RoundsTab({ rounds, pairingsByRound, motionsByRound, ballotsByRound, on
               {ROUND_STATES.map(st => st !== r.state && (
                 <button key={st} onClick={() => setState(rid, st)}>→ {st}</button>
               ))}
+              <button className="rc-reset" onClick={() => resetRound(rid)}>⟲ Reset</button>
             </div>
           </div>
         )
