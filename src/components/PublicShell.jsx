@@ -9,6 +9,8 @@ const TABS = [
   { to: '/runofshow',   label: 'Run of Show' },
   { to: '/judging',     label: 'Judging' },
   { to: '/standings',   label: 'Standings' },
+  { to: '/certificate', label: 'Certificate' },
+  { to: '/room-signs',  label: 'Room Signs' },
 ]
 
 export default function PublicShell({ children }) {
