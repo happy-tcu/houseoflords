@@ -125,10 +125,15 @@ function RoundsTab({ rounds, pairingsByRound, motionsByRound, ballotsByRound, on
               <span>Motion set <b>{r.motion_id ? '✓' : '—'}</b></span>
             </div>
             <div className="rc-actions">
-              {m === 0 && <button onClick={() => seedMotionsFor(rid)}>Seed motions</button>}
-              {ROUND_STATES.map(st => st !== r.state && (
-                <button key={st} onClick={() => setState(rid, st)}>→ {st}</button>
-              ))}
+              {m === 0 && (
+                <button className="rc-primary" onClick={() => seedMotionsFor(rid)}>Seed motions</button>
+              )}
+              {m > 0 && r.state === 'locked' && (
+                <button className="rc-primary" onClick={() => setState(rid, 'prep')}>Push motions</button>
+              )}
+              {r.state !== 'locked' && r.state !== 'done' && (
+                <button onClick={() => setState(rid, 'done')}>Mark done</button>
+              )}
               <button className="rc-reset" onClick={() => resetRound(rid)}>⟲ Reset</button>
             </div>
           </div>
