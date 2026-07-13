@@ -42,8 +42,8 @@ export default function MotionStriking({ pairing, motions, mySide, canReset }) {
             {finalId
               ? '✓ Motion locked — this is your debate motion'
               : yourTurn
-                ? `Your turn — cancel one motion`
-                : `Waiting on ${otherSide} to cancel a motion…`
+                ? `Your turn — strike one motion`
+                : `Waiting on ${otherSide} to strike…`
             }
           </div>
         </div>
@@ -69,10 +69,10 @@ export default function MotionStriking({ pairing, motions, mySide, canReset }) {
               {isFinal ? (
                 <span className="strike-badge final">✓ Debate this</span>
               ) : isStruck ? (
-                <span className="strike-badge struck">Cancelled</span>
+                <span className="strike-badge struck">Struck</span>
               ) : strikableNow ? (
                 <button className="btn-cancel-motion" onClick={() => strike(m.id)} disabled={busy}>
-                  ✕ Cancel this motion
+                  ✕ Strike this motion
                 </button>
               ) : (
                 <span className="strike-badge waiting">Waiting…</span>
