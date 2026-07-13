@@ -34,9 +34,14 @@ export default function JudgeTimer({ pairing }) {
     if (error) alert(error.message)
   }
 
-  async function resetRound() {
-    if (!confirm('Reset this room\'s timer to idle?')) return
-    await supabase.from('pairings').update({ segment: 'idle', segment_ends_at: null }).eq('id', pairing.id)
+  async function restartSpeech() {
+    if (cur.key === 'idle' || cur.key === 'done' || cur.seconds <= 0) return
+    if (!confirm(`Restart ${cur.label}?`)) return
+    const ends = new Date(Date.now() + cur.seconds * 1000).toISOString()
+    const { error } = await supabase.from('pairings')
+      .update({ segment_ends_at: ends })
+      .eq('id', pairing.id)
+    if (error) alert(error.message)
   }
 
   return (
@@ -46,7 +51,9 @@ export default function JudgeTimer({ pairing }) {
           <span className="timer-kicker">Current segment</span>
           <div className="timer-name">{cur.label}</div>
         </div>
-        <button className="timer-reset" onClick={resetRound}>Reset</button>
+        {cur.key !== 'idle' && cur.key !== 'done' && cur.seconds > 0 && (
+          <button className="timer-reset" onClick={restartSpeech}>↻ Restart speech</button>
+        )}
       </div>
 
       <div className="timer-clock">
