@@ -9,12 +9,10 @@ const INFO_TABS = [
   { to: '/format',      label: 'Format' },
   { to: '/runofshow',   label: 'Run of Show' },
   { to: '/judging',     label: 'Judging' },
-  { to: '/standings',   label: 'Standings' },
 ]
 
 // Utility tabs (auth-gated per-role).
-const CERT_ROLES  = ['scholar', 'judge', 'admin']
-const SIGNS_ROLES = ['admin']
+const CERT_ROLES = ['scholar', 'judge', 'admin']
 
 export default function PublicShell({ children }) {
   const { status, profile, signInWithGoogle } = useAuth()
@@ -23,9 +21,6 @@ export default function PublicShell({ children }) {
   const utilityTabs = []
   if (signedIn && CERT_ROLES.includes(profile.role)) {
     utilityTabs.push({ to: '/certificate', label: 'Certificate' })
-  }
-  if (signedIn && SIGNS_ROLES.includes(profile.role)) {
-    utilityTabs.push({ to: '/room-signs', label: 'Room Signs' })
   }
   const tabs = [...INFO_TABS, ...utilityTabs]
 
