@@ -9,8 +9,8 @@ export default function MotionStriking({ pairing, motions, mySide, canReset }) {
 
   const struck = new Set(pairing.struck_motion_ids || [])
   const finalId = pairing.final_motion_id
-  const remaining = motions.filter(m => !struck.has(m.id))
   const yourTurn = mySide && pairing.strike_turn === mySide.toLowerCase()
+  const otherSide = pairing.strike_turn === 'opp' ? 'OPP' : 'PROP'
 
   const strikeCountLabel = useMemo(() => {
     const total = motions.length
@@ -37,13 +37,13 @@ export default function MotionStriking({ pairing, motions, mySide, canReset }) {
     <div className="strike-block">
       <div className="strike-head">
         <div>
-          <div className="strike-kicker">Motion striking</div>
+          <div className="strike-kicker">Motion striking · Opp strikes first, teams alternate</div>
           <div className="strike-title">
             {finalId
-              ? 'Motion locked'
+              ? '✓ Motion locked — this is your debate motion'
               : yourTurn
-                ? "Your turn to strike"
-                : `Waiting on ${pairing.strike_turn.toUpperCase()}`
+                ? `Your turn — cancel one motion`
+                : `Waiting on ${otherSide} to cancel a motion…`
             }
           </div>
         </div>
@@ -67,15 +67,15 @@ export default function MotionStriking({ pairing, motions, mySide, canReset }) {
               <span className="tag" style={{background: KIND_COLORS[m.kind]}}>{m.kind}</span>
               <p>{m.text}</p>
               {isFinal ? (
-                <span className="strike-badge final">Debate this</span>
+                <span className="strike-badge final">✓ Debate this</span>
               ) : isStruck ? (
-                <span className="strike-badge struck">Struck</span>
+                <span className="strike-badge struck">Cancelled</span>
               ) : strikableNow ? (
-                <button className="btn-primary strike-btn" onClick={() => strike(m.id)} disabled={busy}>
-                  Strike
+                <button className="btn-cancel-motion" onClick={() => strike(m.id)} disabled={busy}>
+                  ✕ Cancel this motion
                 </button>
               ) : (
-                <span className="strike-badge waiting">—</span>
+                <span className="strike-badge waiting">Waiting…</span>
               )}
             </li>
           )

@@ -106,32 +106,49 @@ Only this email can access your ${role} portal. If it doesn't work, ping an orga
 }
 
 function renderInviteHtml({ email, role, name, code }: any) {
+  const logoUrl = `${APP_URL}/assets/isomo.png`
+  const roleLabel = String(role).toUpperCase()
   return `<!doctype html>
-<html><body style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; background:#f7f8fa; padding:24px;">
-  <div style="max-width:560px; margin:0 auto; background:#fff; border:1px solid #e6e8ec; border-radius:4px; overflow:hidden;">
-    <div style="padding:22px 28px; border-bottom:6px solid #8cc63e;">
-      <div style="font-size:11px; letter-spacing:2px; text-transform:uppercase; font-weight:800; color:#7ab332;">Isomo · House of Lords</div>
-      <div style="font-size:22px; font-weight:800; color:#2b2c2d; margin-top:4px;">You're on the list.</div>
-    </div>
-    <div style="padding:24px 28px; color:#333; font-size:15px; line-height:1.55;">
-      <p>Hi ${escapeHtml(name || email)},</p>
-      <p>You've been added to the House of Lords tournament roster as
-        <b style="color:#2b2c2d; text-transform:uppercase;">${escapeHtml(role)}</b>${code ? ` · <b>${escapeHtml(code)}</b>` : ""}.
+<html><body style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; background:#f7f8fa; padding:24px; margin:0;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px; margin:0 auto; background:#fff; border:1px solid #e6e8ec; border-radius:4px;">
+    <tr><td style="padding:28px 32px 20px 32px; border-bottom:6px solid #8cc63e;">
+      <img src="${logoUrl}" alt="Isomo" width="88" style="display:block; height:auto;">
+      <div style="margin-top:14px; display:inline-block; padding:4px 10px; background:rgba(140,198,62,0.15); color:#7ab332; font-size:10px; letter-spacing:2px; text-transform:uppercase; font-weight:800;">
+        House of Lords
+      </div>
+    </td></tr>
+    <tr><td style="padding:32px 32px 8px 32px;">
+      <div style="font-family:'Montserrat',-apple-system,sans-serif; font-size:32px; font-weight:800; letter-spacing:-0.5px; color:#2b2c2d; line-height:1.15;">
+        You're on the list.
+      </div>
+    </td></tr>
+    <tr><td style="padding:14px 32px 8px 32px; color:#333; font-size:15px; line-height:1.6;">
+      <p style="margin:0 0 14px 0;">Hi ${escapeHtml(name || email.split('@')[0])},</p>
+      <p style="margin:0 0 14px 0;">
+        You've been added to the <b>House of Lords</b> roster as
+        <span style="display:inline-block; padding:3px 9px; background:#2b2c2d; color:#fff; font-family:'Montserrat',sans-serif; font-size:11px; letter-spacing:1.5px; font-weight:800;">${escapeHtml(roleLabel)}</span>${code ? ` <span style="display:inline-block; padding:3px 9px; background:rgba(140,198,62,0.15); color:#7ab332; font-family:'Montserrat',sans-serif; font-size:11px; letter-spacing:1.5px; font-weight:800;">${escapeHtml(code)}</span>` : ""}.
       </p>
-      <p><b>House of Lords</b> is Isomo's Scholars' Debate — 18 July 2026.
-         Vision 2050, five rounds, 25 motions, 60 voices.</p>
-
-      <p style="margin-top:24px;">
-        <a href="${APP_URL}" style="display:inline-block; background:#2b2c2d; color:#fff; text-decoration:none; padding:12px 20px; border-radius:4px; font-weight:700; letter-spacing:0.5px;">
-          Sign in
-        </a>
+      <p style="margin:0 0 14px 0;">
+        Isomo's Scholars' Debate. Vision 2050. Five rounds, 25 motions, 60 voices.
+        <b>18 July 2026.</b>
       </p>
-      <p style="font-size:13px; color:#6b7280;">Use <b>Sign in with Google</b> and pick the account <b>${escapeHtml(email)}</b>. Only that email can access your ${escapeHtml(role)} portal.</p>
-    </div>
-    <div style="padding:14px 28px; border-top:1px solid #e6e8ec; font-size:11px; color:#6b7280; letter-spacing:1px; text-transform:uppercase; font-weight:700;">
-      What can we do now, with what we have?
-    </div>
-  </div>
+    </td></tr>
+    <tr><td style="padding:14px 32px 8px 32px;">
+      <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+        <td style="background:#2b2c2d;">
+          <a href="${APP_URL}" style="display:inline-block; padding:14px 24px; color:#fff; text-decoration:none; font-family:'Montserrat',sans-serif; font-weight:700; font-size:14px; letter-spacing:0.5px;">
+            Open the portal &nbsp;→
+          </a>
+        </td>
+      </tr></table>
+    </td></tr>
+    <tr><td style="padding:12px 32px 32px 32px; font-size:13px; color:#6b7280; line-height:1.55;">
+      Use <b>Sign in with Google</b> and pick <b style="color:#2b2c2d;">${escapeHtml(email)}</b>. Only that address unlocks your ${escapeHtml(role)} portal.
+    </td></tr>
+    <tr><td style="padding:16px 32px; border-top:1px solid #e6e8ec; background:#fbfcfd; font-size:10px; color:#6b7280; letter-spacing:1.5px; text-transform:uppercase; font-weight:700;">
+      <span style="color:#7ab332;">Isomo</span> &middot; Scholars' Debate &nbsp;&nbsp;|&nbsp;&nbsp; What can we do now, with what we have?
+    </td></tr>
+  </table>
 </body></html>`
 }
 

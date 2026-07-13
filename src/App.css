@@ -1223,8 +1223,31 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
   font-family: 'Montserrat'; font-weight: 800; font-size: 13px;
   color: var(--muted); text-align: center;
 }
-.strike-motion.struck { opacity: 0.4; text-decoration: line-through; background: #f5f5f5; }
-.strike-motion.struck p { color: var(--muted); }
+.strike-motion.struck {
+  background: rgba(231,76,60,0.06);
+  border-color: rgba(231,76,60,0.35);
+}
+.strike-motion.struck p {
+  color: #c0392b;
+  text-decoration: line-through;
+  text-decoration-color: #e74c3c;
+  text-decoration-thickness: 3px;
+}
+.strike-motion.struck .tag { opacity: 0.55; }
+.strike-motion.struck .strike-idx { color: #c0392b; }
+.btn-cancel-motion {
+  background: #e74c3c; color: #fff; border: 0; cursor: pointer;
+  padding: 10px 16px; border-radius: 3px;
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 12px; letter-spacing: 1px; text-transform: uppercase;
+  transition: background 0.15s, transform 0.15s;
+  white-space: nowrap;
+}
+.btn-cancel-motion:hover { background: #c0392b; transform: translateY(-1px); }
+.btn-cancel-motion:disabled { opacity: 0.5; cursor: wait; }
+.strike-badge.struck {
+  background: rgba(231,76,60,0.15); color: #c0392b;
+}
 .strike-motion.final {
   background: rgba(140,198,62,0.10);
   border: 2px solid var(--brand-green);

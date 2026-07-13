@@ -142,7 +142,7 @@ export default function JudgePortal() {
           </div>
 
           {inStrikePhase ? (
-            <MotionStriking pairing={mine} motions={roundMotions} mySide={null} canReset={true} />
+            <MotionStriking pairing={mine} motions={roundMotions} mySide={null} canReset={false} />
           ) : (
             <>
               <JudgeTimer pairing={mine} />
