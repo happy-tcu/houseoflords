@@ -42,9 +42,12 @@ create policy "judge writes own room segment"
               and u.code = pairings.judge_code)
   );
 
--- Enable Realtime on the tables we watch
-alter publication supabase_realtime add table rounds;
-alter publication supabase_realtime add table pairings;
-alter publication supabase_realtime add table ballots;
-alter publication supabase_realtime add table announcements;
-alter publication supabase_realtime add table motions;
+-- Enable Realtime on the tables we watch (idempotent — skips if already added)
+do $$
+begin
+  begin alter publication supabase_realtime add table rounds;        exception when others then null; end;
+  begin alter publication supabase_realtime add table pairings;      exception when others then null; end;
+  begin alter publication supabase_realtime add table ballots;       exception when others then null; end;
+  begin alter publication supabase_realtime add table announcements; exception when others then null; end;
+  begin alter publication supabase_realtime add table motions;       exception when others then null; end;
+end $$;

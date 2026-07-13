@@ -1118,3 +1118,66 @@ table.round-fmt td.note { color: var(--muted); font-size: 13px; }
 .wl-del { background: transparent; border: 0; cursor: pointer; color: var(--muted); font-size: 18px; }
 .wl-del:hover { color: #e74c3c; }
 
+/* ================= GEOMETRIC PASS ================= */
+/* Global de-round: everything is squares & rectangles with tight corners. */
+:root { --radius: 4px; }
+
+/* Cards, panels, containers */
+.round-card, .rc, .mp-block, .bm-round, .stat, .side, .rule-card,
+.hero-stat, .landing-card, .jaxis, .jcard, .ballot-form, .ballot-col2,
+.pair, .ros-slot, .table-wrap, .standings, .timer,
+.jp-summary-block, .dp-live-block, .dp-live, .dp-code-hero, .dp-row,
+.ann, .wl-row, .portal-empty, .bm-cell, .mp-motion,
+.jaxis, .jcard {
+  border-radius: 4px !important;
+}
+
+/* Buttons & interactive rectangles */
+.btn-primary, .btn-secondary, .pub-signin-btn, .pub-portal-btn,
+.rc-actions button, .admin-tabs button, .subtabs button,
+.broadcast-row select, .timer-reset, .timer-actions .btn-primary,
+.wl-del {
+  border-radius: 4px !important;
+}
+
+/* Tags, chips, pills — become rectangles */
+.pill-tag, .tag, .chip, .ros-chip, .mchip, .role-tag,
+.pill-live, .meta-pill, .lc-tag, .lc-kicker, .landing-kicker,
+.pub-tabs a, .kicker, .rc-state, .side-tag, .state-pill,
+.pub-portal-btn .code, .jaxis-num, .col-side, .signal, .chip-seg,
+.tl-tag, .rc-code, .badge, .dp-side, .dp-result,
+.hero .kicker, .jp-summary-block .k, .dp-live-block .k,
+.stat .k, .hero-stat .k, .lc-k, .stat.v, .hero-stat .v,
+.w-choice, .portal-kicker, .jcard-signals .signal {
+  border-radius: 2px !important;
+}
+
+/* Circles → keep dots and pulse indicators as circles */
+.pill-live .dot, .lc-tag::before, .ros-chip::before, .chip .dot,
+.tl-dot, .ann-toast::before, .landing-bg .blob {
+  border-radius: 50% !important;
+}
+
+/* Inputs get sharp corners */
+.score-input-row input, .note-row textarea, .broadcast-row select {
+  border-radius: 3px !important;
+}
+
+/* Slight softening on top-level containers so it still feels intentional */
+.pub-nav-inner { border-radius: 0 !important; }
+.timer-clock { letter-spacing: -2px; }
+
+/* Toast rectangles too */
+.ann-toast { border-radius: 4px !important; }
+
+/* Focus rings become square-ish */
+input:focus, textarea:focus, select:focus, button:focus-visible {
+  outline: 2px solid var(--brand-green);
+  outline-offset: 1px;
+  border-radius: 3px;
+}
+
+/* Round card head + timer strip chips: tight rectangles */
+.round-card .head { border-radius: 4px 4px 0 0; }
+.timer-strip .chip-seg { border-radius: 2px !important; }
+
