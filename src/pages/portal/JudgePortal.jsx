@@ -4,7 +4,32 @@ import JudgeTimer from '../../components/JudgeTimer'
 import MotionStriking from '../../components/MotionStriking'
 import { useAuth } from '../../lib/auth'
 import { supabase } from '../../lib/supabase'
-import { useRealtime } from '../../lib/realtime'
+import { useRealtime, useTick } from '../../lib/realtime'
+import { SEGMENT_MAP, fmt } from '../../lib/segments'
+
+const SPEECHES = [
+  { key: 'prop_const',  label: 'Prop constructive' },
+  { key: 'opp_open',    label: 'Opp opening' },
+  { key: 'prop_rebut',  label: 'Prop rebuttal' },
+  { key: 'opp_close',   label: 'Opp closing' },
+  { key: 'prop_close',  label: 'Prop closing (last Aff)' },
+]
+
+const UNLOCK_AFTER_PROP_CLOSE_SECONDS = 120  // 2 minutes
+
+function computeUnlockInfo(pairing) {
+  if (!pairing) return { locked: true, remaining: null, reason: 'no room' }
+  if (pairing.segment === 'voting' || pairing.segment === 'done') {
+    // voting starts right after prop_close ends; treat voting_started_at as segment_ends_at - voting_duration
+    const votingDur = (SEGMENT_MAP.voting?.seconds ?? 180) * 1000
+    const votingEnds = pairing.segment_ends_at ? new Date(pairing.segment_ends_at).getTime() : Date.now()
+    const votingStarted = pairing.segment === 'voting' ? votingEnds - votingDur : Date.now()
+    const unlockAt = votingStarted + UNLOCK_AFTER_PROP_CLOSE_SECONDS * 1000
+    const remaining = Math.max(0, Math.floor((unlockAt - Date.now()) / 1000))
+    return { locked: remaining > 0, remaining, reason: 'countdown' }
+  }
+  return { locked: true, remaining: null, reason: 'before-voting' }
+}
 
 const AXES = [
   { key: 'argument',   name: 'Argument',       note: 'Clarity of claim, logic, evidence.' },
@@ -17,6 +42,7 @@ const empty = () => ({
   aff_argument: '', aff_rebuttal: '', aff_delivery: '', aff_persuasion: '', aff_note: '',
   opp_argument: '', opp_rebuttal: '', opp_delivery: '', opp_persuasion: '', opp_note: '',
   winner: '',
+  speech_notes: { prop_const: '', opp_open: '', prop_rebut: '', opp_close: '', prop_close: '' },
 })
 
 export default function JudgePortal() {
@@ -24,6 +50,7 @@ export default function JudgePortal() {
   const [ballot, setBallot] = useState(empty)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
+  useTick(500)
 
   const { rows: rounds } = useRealtime('rounds', {}, [])
   const { rows: pairings } = useRealtime('pairings', {}, [])
@@ -69,6 +96,7 @@ export default function JudgePortal() {
       row.winner = ballot.winner
       row.aff_note = ballot.aff_note || null
       row.opp_note = ballot.opp_note || null
+      row.speech_notes = ballot.speech_notes || {}
       const { error } = await supabase.from('ballots').insert(row)
       if (error) throw error
       setMsg('Ballot submitted.'); setBallot(empty())
@@ -162,57 +190,103 @@ export default function JudgePortal() {
                     Opp {['argument','rebuttal','delivery','persuasion'].reduce((s,k) => s+(existing[`opp_${k}`]||0),0)}/20.</span>
             </div>
           ) : (
-            (active.state === 'debate' || active.state === 'voting') && (
-              <form className="ballot-form" onSubmit={onSubmit} style={{marginTop: 16}}>
-                <div className="ballot-cols">
-                  {['aff', 'opp'].map(side => (
-                    <div key={side} className={`ballot-col2 ${side}`}>
-                      <div className="col-hd">
-                        <span className={`side-tag ${side}`}>{side === 'aff' ? 'PROP' : 'OPP'}</span>
-                        <span className="col-code">{side === 'aff' ? mine.aff_code : mine.opp_code}</span>
+            (active.state === 'debate' || active.state === 'voting' || active.state === 'prep') && (() => {
+              const unlock = computeUnlockInfo(mine)
+              const scoresLocked = unlock.locked
+              return (
+                <>
+                  {/* Per-speech notes — always editable */}
+                  <div className="speech-notes-card">
+                    <div className="sn-hdr">
+                      <span className="sn-kicker">Speech Notes</span>
+                      <span className="sn-hint">Take notes as speeches happen. Auto-saved when you submit.</span>
+                    </div>
+                    {SPEECHES.map(sp => (
+                      <label key={sp.key} className="sn-row">
+                        <span className="sn-label">{sp.label}</span>
+                        <textarea rows="2"
+                                  value={ballot.speech_notes[sp.key] || ''}
+                                  onChange={e => setBallot(b => ({
+                                    ...b, speech_notes: { ...b.speech_notes, [sp.key]: e.target.value }
+                                  }))}
+                                  placeholder={`Key points during ${sp.label.toLowerCase()}…`} />
+                      </label>
+                    ))}
+                  </div>
+
+                  <form className={`ballot-form ${scoresLocked ? 'ballot-locked' : ''}`} onSubmit={onSubmit} style={{marginTop: 16}}>
+                    {scoresLocked && (
+                      <div className="ballot-lock-banner">
+                        <span className="lock-icon">🔒</span>
+                        <div>
+                          <b>Speaker points &amp; vote unlock 2:00 after Prop closing.</b>
+                          <span>
+                            {unlock.reason === 'before-voting'
+                              ? 'Waiting for the last Aff speech to conclude.'
+                              : unlock.remaining != null
+                                ? `Unlocks in ${fmt(unlock.remaining)}`
+                                : 'Waiting…'}
+                          </span>
+                        </div>
                       </div>
-                      {AXES.map(a => (
-                        <label key={a.key} className="score-input-row">
-                          <span className="sr-name">{a.name}</span>
-                          <input type="number" min="0" max="5" required
-                                 value={ballot[`${side}_${a.key}`]}
-                                 onChange={e => set(`${side}_${a.key}`, e.target.value)} />
-                          <span className="sr-max">/ 5</span>
-                        </label>
+                    )}
+
+                    <div className="ballot-cols">
+                      {['aff', 'opp'].map(side => (
+                        <div key={side} className={`ballot-col2 ${side}`}>
+                          <div className="col-hd">
+                            <span className={`side-tag ${side}`}>{side === 'aff' ? 'PROP' : 'OPP'}</span>
+                            <span className="col-code">{side === 'aff' ? mine.aff_code : mine.opp_code}</span>
+                          </div>
+                          {AXES.map(a => (
+                            <label key={a.key} className="score-input-row">
+                              <span className="sr-name">{a.name}</span>
+                              <input type="number" min="0" max="5" required
+                                     disabled={scoresLocked}
+                                     value={ballot[`${side}_${a.key}`]}
+                                     onChange={e => set(`${side}_${a.key}`, e.target.value)} />
+                              <span className="sr-max">/ 5</span>
+                            </label>
+                          ))}
+                          <div className="col-total">Total <b>{total(side)}<small> / 20</small></b></div>
+                          <label className="note-row">
+                            <span>Final one-liner (optional)</span>
+                            <textarea rows="2"
+                                      value={ballot[`${side}_note`]}
+                                      onChange={e => set(`${side}_note`, e.target.value)}
+                                      placeholder={`One line the ${side === 'aff' ? 'Prop' : 'Opp'} speaker should hear`} />
+                          </label>
+                        </div>
                       ))}
-                      <div className="col-total">Total <b>{total(side)}<small> / 20</small></b></div>
-                      <label className="note-row">
-                        <span>Feedback (optional)</span>
-                        <textarea rows="3"
-                                  value={ballot[`${side}_note`]}
-                                  onChange={e => set(`${side}_note`, e.target.value)}
-                                  placeholder={`One line the ${side === 'aff' ? 'Prop' : 'Opp'} speaker should hear`} />
+                    </div>
+
+                    <div className={`winner-row ${scoresLocked ? 'locked' : ''}`}>
+                      <span>Winner</span>
+                      <label className={`w-choice ${ballot.winner === 'aff' ? 'sel' : ''} ${scoresLocked ? 'disabled' : ''}`}>
+                        <input type="radio" name="winner" value="aff" required
+                               disabled={scoresLocked}
+                               checked={ballot.winner === 'aff'}
+                               onChange={e => set('winner', e.target.value)} />
+                        PROP · {mine.aff_code}
+                      </label>
+                      <label className={`w-choice ${ballot.winner === 'opp' ? 'sel' : ''} ${scoresLocked ? 'disabled' : ''}`}>
+                        <input type="radio" name="winner" value="opp"
+                               disabled={scoresLocked}
+                               checked={ballot.winner === 'opp'}
+                               onChange={e => set('winner', e.target.value)} />
+                        OPP · {mine.opp_code}
                       </label>
                     </div>
-                  ))}
-                </div>
 
-                <div className="winner-row">
-                  <span>Winner</span>
-                  <label className={`w-choice ${ballot.winner === 'aff' ? 'sel' : ''}`}>
-                    <input type="radio" name="winner" value="aff" required
-                           checked={ballot.winner === 'aff'}
-                           onChange={e => set('winner', e.target.value)} />
-                    PROP · {mine.aff_code}
-                  </label>
-                  <label className={`w-choice ${ballot.winner === 'opp' ? 'sel' : ''}`}>
-                    <input type="radio" name="winner" value="opp"
-                           checked={ballot.winner === 'opp'}
-                           onChange={e => set('winner', e.target.value)} />
-                    OPP · {mine.opp_code}
-                  </label>
-                </div>
-
-                <button type="submit" className="btn-primary" disabled={busy}>
-                  {busy ? 'Submitting…' : 'Submit ballot'}
-                </button>
-              </form>
-            )
+                    <button type="submit" className="btn-primary" disabled={busy || scoresLocked}>
+                      {scoresLocked
+                        ? (unlock.remaining != null ? `Locked — unlocks in ${fmt(unlock.remaining)}` : 'Locked')
+                        : busy ? 'Submitting…' : 'Submit ballot'}
+                    </button>
+                  </form>
+                </>
+              )
+            })()
           )}
         </>
       )}
