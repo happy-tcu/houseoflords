@@ -216,18 +216,26 @@ export default function JudgePortal() {
 
                   <form className={`ballot-form ${scoresLocked ? 'ballot-locked' : ''}`} onSubmit={onSubmit} style={{marginTop: 16}}>
                     {scoresLocked && (
-                      <div className="ballot-lock-banner">
-                        <span className="lock-icon">🔒</span>
-                        <div>
-                          <b>Speaker points &amp; vote unlock 2:00 after Prop closing.</b>
-                          <span>
-                            {unlock.reason === 'before-voting'
-                              ? 'Waiting for the last Aff speech to conclude.'
-                              : unlock.remaining != null
-                                ? `Unlocks in ${fmt(unlock.remaining)}`
-                                : 'Waiting…'}
-                          </span>
+                      <div className="ballot-lock-card">
+                        <div className="blc-hdr">
+                          <span className="lock-icon">🔒</span>
+                          <div>
+                            <b>Speaker points &amp; vote locked</b>
+                            <span>Unlock 2:00 after Prop closing ends</span>
+                          </div>
                         </div>
+                        {unlock.reason === 'countdown' && unlock.remaining != null ? (
+                          <>
+                            <div className="blc-clock">{fmt(unlock.remaining)}</div>
+                            <div className="blc-bar"><div className="blc-fill" style={{width: `${100 - Math.min(100, (unlock.remaining / 120) * 100)}%`}} /></div>
+                            <div className="blc-hint">Ballot unlocks automatically at 0:00</div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="blc-clock">— : —</div>
+                            <div className="blc-hint">Countdown starts when Prop closing ends</div>
+                          </>
+                        )}
                       </div>
                     )}
 

@@ -1400,6 +1400,51 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
   display: block; font-size: 12px; color: var(--muted); margin-top: 2px;
 }
 
+.ballot-lock-card {
+  background: linear-gradient(180deg, #fff5f4 0%, #ffffff 100%);
+  border: 2px solid rgba(231,76,60,0.35);
+  border-radius: 4px;
+  padding: 20px 24px 22px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.blc-hdr {
+  display: flex; align-items: center; gap: 12px;
+  padding-bottom: 14px; margin-bottom: 14px;
+  border-bottom: 1px dashed rgba(231,76,60,0.25);
+}
+.blc-hdr .lock-icon { font-size: 26px; }
+.blc-hdr b {
+  display: block; font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 14px; color: #c0392b; letter-spacing: 0.5px;
+}
+.blc-hdr span {
+  display: block; font-size: 12px; color: var(--muted);
+  font-family: 'Montserrat', sans-serif; font-weight: 600;
+  letter-spacing: 0.5px; margin-top: 2px;
+}
+.blc-clock {
+  font-family: 'Montserrat', 'SF Mono', monospace; font-weight: 800;
+  font-size: 72px; line-height: 1; letter-spacing: -2px;
+  color: #c0392b; text-align: center;
+  font-variant-numeric: tabular-nums;
+  margin: 4px 0 14px;
+}
+@media (max-width: 720px) { .blc-clock { font-size: 52px; } }
+.blc-bar {
+  height: 8px; background: rgba(231,76,60,0.10); border-radius: 2px;
+  overflow: hidden; margin: 6px 0 12px;
+}
+.blc-fill {
+  height: 100%; background: linear-gradient(90deg, #e74c3c, #c0392b);
+  transition: width 0.5s linear;
+}
+.blc-hint {
+  font-family: 'Montserrat', sans-serif; font-size: 11px;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: var(--muted); text-align: center; font-weight: 700;
+}
+
 .ballot-locked .score-input-row input:disabled,
 .ballot-locked .w-choice.disabled {
   opacity: 0.4; cursor: not-allowed;
