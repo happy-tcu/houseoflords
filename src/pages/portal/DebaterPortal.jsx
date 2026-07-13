@@ -69,21 +69,16 @@ export default function DebaterPortal() {
           {(() => {
             const roundMotions = (allMotions || []).filter(m => m.round_id === active.id)
             const inStrikePhase = active.state === 'prep' && !activeMine.final_motion_id && roundMotions.length > 0
-            if (inStrikePhase) {
-              return <MotionStriking pairing={activeMine} motions={roundMotions} mySide={mySide} canReset={false} />
-            }
             return (
               <>
                 <DebaterTimer pairing={activeMine} mySide={mySide} />
-                {motion ? (
+                {inStrikePhase && (
+                  <MotionStriking pairing={activeMine} motions={roundMotions} mySide={mySide} canReset={false} />
+                )}
+                {!inStrikePhase && motion && (
                   <div className="jp-motion" style={{marginTop: 16}}>
                     <span className="tag" style={{background:'#8cc63e'}}>Motion</span>
                     <p>{motion.text}</p>
-                  </div>
-                ) : (
-                  <div className="portal-empty">
-                    <b>Motion not selected.</b>
-                    <span>Waiting on the strike to conclude.</span>
                   </div>
                 )}
               </>

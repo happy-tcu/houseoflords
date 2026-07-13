@@ -141,24 +141,17 @@ export default function JudgePortal() {
             <div className="jp-summary-block opp"><div className="k">Opp</div><div className="v">{mine.opp_code}</div></div>
           </div>
 
-          {inStrikePhase ? (
-            <MotionStriking pairing={mine} motions={roundMotions} mySide={null} canReset={false} />
-          ) : (
-            <>
-              <JudgeTimer pairing={mine} />
+          <JudgeTimer pairing={mine} />
 
-              {motion ? (
-                <div className="jp-motion">
-                  <span className="tag" style={{background:'#8cc63e'}}>Motion</span>
-                  <p>{motion.text}</p>
-                </div>
-              ) : (
-                <div className="portal-empty">
-                  <b>Motion not selected yet.</b>
-                  <span>Waiting on strike to complete.</span>
-                </div>
-              )}
-            </>
+          {inStrikePhase && (
+            <MotionStriking pairing={mine} motions={roundMotions} mySide={null} canReset={false} />
+          )}
+
+          {!inStrikePhase && motion && (
+            <div className="jp-motion">
+              <span className="tag" style={{background:'#8cc63e'}}>Motion</span>
+              <p>{motion.text}</p>
+            </div>
           )}
 
           {existing ? (

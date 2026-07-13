@@ -977,6 +977,10 @@ table.round-fmt td.note { color: var(--muted); font-size: 13px; }
   50%     { box-shadow: 0 0 0 10px rgba(231,76,60,0.10); }
 }
 .timer-actions { display: flex; justify-content: center; margin-bottom: 14px; }
+.timer-hint {
+  font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600;
+  letter-spacing: 0.5px; color: var(--muted); font-style: italic;
+}
 .timer-strip {
   display: flex; flex-wrap: wrap; gap: 6px; padding-top: 14px;
   border-top: 1px dashed var(--border);

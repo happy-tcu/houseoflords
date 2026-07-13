@@ -46,7 +46,7 @@ export default function JudgeTimer({ pairing }) {
 
       <div className="timer-actions">
         {cur.key === 'idle' && (
-          <button className="btn-primary" onClick={() => startSegment('prep')}>Start prep</button>
+          <span className="timer-hint">Timer auto-starts when the first strike happens.</span>
         )}
         {cur.key !== 'idle' && cur.key !== 'done' && nextKey && (
           <button className="btn-primary" onClick={() => startSegment(nextKey)}>
