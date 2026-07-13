@@ -1,11 +1,24 @@
+import { useEffect, useRef } from 'react'
 import { SEGMENT_MAP, fmt, computeRemaining, warningLevel } from '../lib/segments'
 import { useTick } from '../lib/realtime'
+import { beep } from '../lib/sound'
 
 export default function DebaterTimer({ pairing, mySide }) {
   useTick(500)
   const cur = SEGMENT_MAP[pairing.segment] || SEGMENT_MAP.idle
   const remaining = computeRemaining(pairing.segment_ends_at)
   const warn = warningLevel(remaining)
+  const lastRef = useRef(remaining)
+  useEffect(() => {
+    const prev = lastRef.current
+    const now = remaining
+    if (cur.seconds > 0) {
+      if (prev > 30 && now <= 30 && now > 0) beep({freq: 660, dur: 180})
+      if (prev > 15 && now <= 15 && now > 0) beep({freq: 880, dur: 220})
+      if (prev > 0 && now === 0)             beep({freq: 1000, dur: 400, repeat: 3})
+    }
+    lastRef.current = now
+  }, [remaining, cur.seconds])
 
   const speaking = whoIsSpeaking(cur.key)
   const yourTurn = speaking?.side && mySide && speaking.side.toLowerCase() === mySide.toLowerCase()

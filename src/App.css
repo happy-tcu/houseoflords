@@ -986,6 +986,15 @@ table.round-fmt td.note { color: var(--muted); font-size: 13px; }
   font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600;
   letter-spacing: 0.5px; color: var(--muted); font-style: italic;
 }
+.btn-primary.pulse {
+  background: var(--brand-green); border-color: var(--brand-green);
+  animation: pulse-start 1.2s ease-in-out infinite;
+}
+.btn-primary.pulse:hover { background: var(--brand-green-2); }
+@keyframes pulse-start {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(140,198,62,0.5); }
+  50%      { box-shadow: 0 0 0 12px rgba(140,198,62,0.0); }
+}
 .timer-strip {
   display: flex; flex-wrap: wrap; gap: 6px; padding-top: 14px;
   border-top: 1px dashed var(--border);

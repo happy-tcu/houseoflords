@@ -1,6 +1,8 @@
+import { useEffect, useRef } from 'react'
 import { SEGMENT_MAP, SEGMENTS, fmt, computeRemaining, warningLevel } from '../lib/segments'
 import { useTick } from '../lib/realtime'
 import { supabase } from '../lib/supabase'
+import { beep } from '../lib/sound'
 
 export default function JudgeTimer({ pairing }) {
   useTick(500)
@@ -8,6 +10,19 @@ export default function JudgeTimer({ pairing }) {
   const remaining = computeRemaining(pairing.segment_ends_at)
   const warn = warningLevel(remaining)
   const nextKey = cur.next
+  const timeUp = cur.seconds > 0 && remaining === 0
+
+  const lastRef = useRef(remaining)
+  useEffect(() => {
+    const prev = lastRef.current
+    const now = remaining
+    if (cur.seconds > 0) {
+      if (prev > 30 && now <= 30 && now > 0) beep({freq: 660, dur: 180})
+      if (prev > 15 && now <= 15 && now > 0) beep({freq: 880, dur: 220})
+      if (prev > 0 && now === 0)             beep({freq: 1000, dur: 400, repeat: 3})
+    }
+    lastRef.current = now
+  }, [remaining, cur.seconds])
 
   async function startSegment(key) {
     const seg = SEGMENT_MAP[key]
@@ -46,11 +61,12 @@ export default function JudgeTimer({ pairing }) {
 
       <div className="timer-actions">
         {cur.key === 'idle' && (
-          <span className="timer-hint">Timer auto-starts when the first strike happens.</span>
+          <span className="timer-hint">Timer auto-starts on the first strike.</span>
         )}
         {cur.key !== 'idle' && cur.key !== 'done' && nextKey && (
-          <button className="btn-primary" onClick={() => startSegment(nextKey)}>
-            Next → {SEGMENT_MAP[nextKey].label}
+          <button className={`btn-primary ${timeUp ? 'pulse' : ''}`} onClick={() => startSegment(nextKey)}>
+            {timeUp ? `▶ Start — ${SEGMENT_MAP[nextKey].label}`
+                    : `Skip to — ${SEGMENT_MAP[nextKey].label}`}
           </button>
         )}
         {cur.key === 'done' && (
