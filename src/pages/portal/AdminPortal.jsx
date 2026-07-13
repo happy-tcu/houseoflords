@@ -127,35 +127,55 @@ function RoundsTab({ rounds, pairingsByRound, motionsByRound, ballotsByRound, on
   )
 }
 
-/* ---------------- MOTIONS ---------------- */
+/* ---------------- MOTIONS + STRIKE STATUS ---------------- */
 function MotionsTab({ rounds, motionsByRound, onMsg }) {
-  async function pickMotion(rid, mid) {
+  const { rows: pairings } = useRealtime('pairings', {}, [])
+  const pairsByRound = useMemo(() => group(pairings || [], p => p.round_id), [pairings])
+
+  async function resetAll(rid) {
+    if (!confirm(`Reset all strikes for ${rid}?`)) return
     onMsg(null)
-    const { error } = await supabase.from('rounds').update({ motion_id: mid }).eq('id', rid)
-    if (error) onMsg(error.message); else onMsg(`Motion released for ${rid}`)
+    const pp = pairsByRound[rid] || []
+    for (const p of pp) {
+      await supabase.rpc('reset_strikes', { p_pairing: p.id })
+    }
+    onMsg(`Reset ${pp.length} rooms in ${rid}`)
   }
+
   return (
     <div className="motions-picker">
+      <div className="portal-hint" style={{background:'#fff', padding:'12px 16px', border:'1px solid var(--border)', borderRadius: 4, marginBottom: 12}}>
+        In IPDA impromptu, all 5 motions are offered per round. Opp strikes first, teams alternate, one remains.
+        Set the round to <b>prep</b> and striking opens automatically for every room.
+      </div>
       {(rounds || []).map(r => {
         const ms = motionsByRound[r.id] || []
+        const pp = pairsByRound[r.id] || []
+        const doneCount = pp.filter(p => p.final_motion_id).length
         return (
           <div className="mp-block" key={r.id}>
             <div className="mp-head">
               <span className="rc-code">{r.id}</span>
-              <span className="mp-status">{r.motion_id ? 'Motion selected' : 'None selected'}</span>
+              <span className="mp-status">
+                {ms.length === 0 ? 'No motions seeded' :
+                 pp.length === 0 ? `${ms.length} motions ready` :
+                 `${doneCount} / ${pp.length} rooms finalized`}
+              </span>
+              {pp.length > 0 && (
+                <button className="btn-secondary" onClick={() => resetAll(r.id)}>Reset all strikes</button>
+              )}
             </div>
-            {ms.length === 0 && <div className="portal-empty"><b>No motions.</b><span>Go to Round Control → Seed motions.</span></div>}
-            {ms.map(m => {
-              const active = m.id === r.motion_id
-              return (
-                <div key={m.id} className={`mp-motion ${active ? 'active' : ''}`}>
-                  <span className="tag" style={{background: colorFor(m.kind)}}>{m.kind}</span>
-                  <p>{m.text}</p>
-                  <button className="btn-secondary" onClick={() => pickMotion(r.id, m.id)}
-                          disabled={active}>{active ? 'Selected' : 'Release this'}</button>
-                </div>
-              )
-            })}
+            {ms.length === 0 && (
+              <div className="portal-empty"><b>No motions.</b>
+                <span>Round Control → Seed motions.</span>
+              </div>
+            )}
+            {ms.map((m, i) => (
+              <div key={m.id} className="mp-motion">
+                <span className="tag" style={{background: colorFor(m.kind)}}>{m.kind}</span>
+                <p><b>M{i+1}.</b> {m.text}</p>
+              </div>
+            ))}
           </div>
         )
       })}

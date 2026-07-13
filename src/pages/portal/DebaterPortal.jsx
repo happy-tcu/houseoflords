@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import PortalShell from '../../components/PortalShell'
 import DebaterTimer from '../../components/DebaterTimer'
+import MotionStriking from '../../components/MotionStriking'
 import { useAuth } from '../../lib/auth'
 import { supabase } from '../../lib/supabase'
 import { useRealtime } from '../../lib/realtime'
@@ -10,6 +11,7 @@ export default function DebaterPortal() {
   const { rows: rounds } = useRealtime('rounds', {}, [])
   const { rows: pairings } = useRealtime('pairings', {}, [])
   const { rows: ballots } = useRealtime('ballots', {}, [])
+  const { rows: allMotions } = useRealtime('motions', {}, [])
   const [motion, setMotion] = useState(null)
 
   const mine = useMemo(() => (pairings || []).filter(
@@ -21,13 +23,15 @@ export default function DebaterPortal() {
 
   useEffect(() => {
     (async () => {
-      if (!active) { setMotion(null); return }
-      if (active.motion_id) {
-        const { data } = await supabase.from('motions').select('*').eq('id', active.motion_id).maybeSingle()
+      if (!active || !activeMine) { setMotion(null); return }
+      const finalId = activeMine.final_motion_id
+      const mid = finalId || active.motion_id
+      if (mid) {
+        const { data } = await supabase.from('motions').select('*').eq('id', mid).maybeSingle()
         setMotion(data)
       } else { setMotion(null) }
     })()
-  }, [active?.motion_id])
+  }, [active?.motion_id, activeMine?.final_motion_id])
 
   const mySide = activeMine ? (activeMine.aff_code === profile.code ? 'Aff' : 'Opp') : null
 
@@ -62,19 +66,29 @@ export default function DebaterPortal() {
             <div className="dp-live-block"><div className="k">Judge</div><div className="v">{activeMine.judge_code}</div></div>
           </div>
 
-          <DebaterTimer pairing={activeMine} mySide={mySide} />
-
-          {motion ? (
-            <div className="jp-motion" style={{marginTop: 16}}>
-              <span className="tag" style={{background:'#8cc63e'}}>Motion</span>
-              <p>{motion.text}</p>
-            </div>
-          ) : (
-            <div className="portal-empty">
-              <b>Motion not released yet.</b>
-              <span>The moment admin drops it, it appears here.</span>
-            </div>
-          )}
+          {(() => {
+            const roundMotions = (allMotions || []).filter(m => m.round_id === active.id)
+            const inStrikePhase = active.state === 'prep' && !activeMine.final_motion_id && roundMotions.length > 0
+            if (inStrikePhase) {
+              return <MotionStriking pairing={activeMine} motions={roundMotions} mySide={mySide} canReset={false} />
+            }
+            return (
+              <>
+                <DebaterTimer pairing={activeMine} mySide={mySide} />
+                {motion ? (
+                  <div className="jp-motion" style={{marginTop: 16}}>
+                    <span className="tag" style={{background:'#8cc63e'}}>Motion</span>
+                    <p>{motion.text}</p>
+                  </div>
+                ) : (
+                  <div className="portal-empty">
+                    <b>Motion not selected.</b>
+                    <span>Waiting on the strike to conclude.</span>
+                  </div>
+                )}
+              </>
+            )
+          })()}
         </div>
       ) : (
         <div className="portal-empty">

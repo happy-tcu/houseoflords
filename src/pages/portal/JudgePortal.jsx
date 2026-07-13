@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import PortalShell from '../../components/PortalShell'
 import JudgeTimer from '../../components/JudgeTimer'
+import MotionStriking from '../../components/MotionStriking'
 import { useAuth } from '../../lib/auth'
 import { supabase } from '../../lib/supabase'
 import { useRealtime } from '../../lib/realtime'
@@ -35,16 +36,18 @@ export default function JudgePortal() {
     [pairings, profile?.code]
   )
 
+  const { rows: allMotions } = useRealtime('motions', {}, [])
   const [motion, setMotion] = useState(null)
   useEffect(() => {
     (async () => {
-      if (!active) { setMotion(null); return }
-      if (active.motion_id) {
-        const { data } = await supabase.from('motions').select('*').eq('id', active.motion_id).maybeSingle()
+      if (!active || !mine) { setMotion(null); return }
+      const mid = mine.final_motion_id || active.motion_id
+      if (mid) {
+        const { data } = await supabase.from('motions').select('*').eq('id', mid).maybeSingle()
         setMotion(data)
       } else { setMotion(null) }
     })()
-  }, [active?.motion_id])
+  }, [active?.motion_id, mine?.final_motion_id])
 
   const { rows: existingList } = useRealtime('ballots',
     active && mine ? { eq: { round_id: active.id, room: mine.room } } : null,
@@ -105,19 +108,29 @@ export default function JudgePortal() {
         <div className="jp-summary-block opp"><div className="k">Opp</div><div className="v">{mine.opp_code}</div></div>
       </div>
 
-      <JudgeTimer pairing={mine} />
-
-      {motion ? (
-        <div className="jp-motion">
-          <span className="tag" style={{background:'#8cc63e'}}>Motion</span>
-          <p>{motion.text}</p>
-        </div>
-      ) : (
-        <div className="portal-empty">
-          <b>Motion not released yet.</b>
-          <span>Admin releases it when prep starts.</span>
-        </div>
-      )}
+      {(() => {
+        const roundMotions = (allMotions || []).filter(m => m.round_id === active.id)
+        const inStrikePhase = active.state === 'prep' && !mine.final_motion_id && roundMotions.length > 0
+        if (inStrikePhase) {
+          return <MotionStriking pairing={mine} motions={roundMotions} mySide={null} canReset={true} />
+        }
+        return (
+          <>
+            <JudgeTimer pairing={mine} />
+            {motion ? (
+              <div className="jp-motion">
+                <span className="tag" style={{background:'#8cc63e'}}>Motion</span>
+                <p>{motion.text}</p>
+              </div>
+            ) : (
+              <div className="portal-empty">
+                <b>Motion not selected.</b>
+                <span>Waiting on the strike to finish.</span>
+              </div>
+            )}
+          </>
+        )
+      })()}
 
       {existing ? (
         <div className="portal-empty ok">
