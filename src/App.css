@@ -1104,7 +1104,7 @@ table.round-fmt td.note { color: var(--muted); font-size: 13px; }
 /* Whitelist / Roster */
 .wl-list { display: flex; flex-direction: column; gap: 4px; max-height: 500px; overflow-y: auto; }
 .wl-row {
-  display: grid; grid-template-columns: 80px 60px 1fr 1fr 30px; gap: 12px; align-items: center;
+  display: grid; grid-template-columns: 80px 60px 1fr 1fr 110px; gap: 12px; align-items: center;
   padding: 10px 14px; border-radius: 8px; background: var(--panel); border: 1px solid var(--border);
   font-size: 13px;
 }
@@ -1288,5 +1288,46 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
 .wl-locked {
   color: var(--brand-green-2); font-size: 14px; cursor: not-allowed;
   padding: 0 6px;
+}
+.wl-row-actions { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
+.wl-edit-btn {
+  background: transparent; border: 1px solid var(--border); cursor: pointer;
+  padding: 4px 10px; border-radius: 3px;
+  font-family: 'Montserrat'; font-weight: 700; font-size: 11px;
+  letter-spacing: 1px; text-transform: uppercase; color: var(--brand-dark);
+}
+.wl-edit-btn:hover { background: var(--panel-2); }
+
+.wl-row.wl-editing {
+  background: rgba(29,175,236,0.05); border-color: var(--brand-blue);
+}
+.wl-editing .role-select {
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: 3px;
+  font-family: 'Montserrat'; font-weight: 700; font-size: 11px;
+  letter-spacing: 1px; text-transform: uppercase;
+  background: var(--panel); cursor: pointer;
+}
+.wl-editing select {
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: 3px;
+  font-family: 'Montserrat'; font-weight: 700; font-size: 12px;
+  background: var(--panel); cursor: pointer;
+}
+.wl-name-input {
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: 3px;
+  font-family: 'Open Sans'; font-size: 13px; background: var(--panel);
+}
+.wl-edit-actions { display: flex; gap: 4px; justify-content: flex-end; }
+.wl-save {
+  background: var(--brand-dark); color: #fff; border: 0; cursor: pointer;
+  padding: 6px 14px; border-radius: 3px;
+  font-family: 'Montserrat'; font-weight: 700; font-size: 11px;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.wl-save:disabled { opacity: 0.5; }
+.wl-cancel {
+  background: transparent; border: 1px solid var(--border); cursor: pointer;
+  padding: 6px 12px; border-radius: 3px;
+  font-family: 'Montserrat'; font-weight: 700; font-size: 11px;
+  letter-spacing: 1px; text-transform: uppercase; color: var(--muted);
 }
 

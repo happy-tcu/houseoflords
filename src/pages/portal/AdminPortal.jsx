@@ -323,6 +323,11 @@ function WhitelistTab({ onMsg }) {
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
 
+  const [editing, setEditing] = useState(null)  // email
+  const [er, setER] = useState('scholar')
+  const [ec, setEC] = useState('')
+  const [en, setEN] = useState('')
+
   useEffect(() => { load() }, [])
   async function load() {
     const { data } = await supabase.from('allowed_users').select('*').order('role').order('code')
@@ -356,6 +361,30 @@ function WhitelistTab({ onMsg }) {
     if (!confirm(`Remove ${em}?`)) return
     const { error } = await supabase.from('allowed_users').delete().eq('email', em)
     if (error) onMsg(error.message); else load()
+  }
+
+  function startEdit(u) {
+    setEditing(u.email); setER(u.role); setEC(u.code || ''); setEN(u.name || '')
+  }
+  function cancelEdit() { setEditing(null); onMsg(null) }
+  async function saveEdit(em) {
+    setBusy(true); onMsg(null)
+    const patch = {
+      role: er,
+      code: er === 'admin' ? null : (ec || null),
+      name: en.trim() || null,
+    }
+    if (er !== 'admin' && !patch.code) { onMsg('Pick a code'); setBusy(false); return }
+    const { error } = await supabase.from('allowed_users').update(patch).eq('email', em)
+    if (error) onMsg(error.message)
+    else { onMsg(`Updated ${em}`); setEditing(null); load() }
+    setBusy(false)
+  }
+
+  function availableForEdit(currentUser, targetRole) {
+    if (targetRole === 'admin') return []
+    const pool = targetRole === 'scholar' ? ALL_SCHOLAR_CODES : ALL_JUDGE_CODES
+    return pool.filter(c => !takenCodes.has(c) || c === currentUser.code)
   }
 
   async function bulkImport(e) {
@@ -439,15 +468,50 @@ function WhitelistTab({ onMsg }) {
       <div className="wl-list">
         {users.map(u => {
           const isSelf = u.email.toLowerCase() === myEmail
+          const isEditing = editing === u.email
+          const editCodes = availableForEdit(u, er)
+
+          if (isEditing) {
+            return (
+              <div key={u.email} className="wl-row wl-editing">
+                <select value={er} onChange={e => { setER(e.target.value); setEC('') }}
+                        className={`role-select role-${er}`}
+                        disabled={isSelf && u.role === 'admin'}>
+                  <option value="scholar">scholar</option>
+                  <option value="judge">judge</option>
+                  <option value="admin">admin</option>
+                </select>
+                {er === 'admin'
+                  ? <span className="wl-code">—</span>
+                  : (
+                    <select value={ec} onChange={e => setEC(e.target.value)} required>
+                      <option value="">— code —</option>
+                      {editCodes.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  )}
+                <input className="wl-name-input" value={en} onChange={e => setEN(e.target.value)}
+                       placeholder="Name" />
+                <span className="wl-email">{u.email}</span>
+                <div className="wl-edit-actions">
+                  <button className="wl-save" onClick={() => saveEdit(u.email)} disabled={busy}>Save</button>
+                  <button className="wl-cancel" onClick={cancelEdit}>Cancel</button>
+                </div>
+              </div>
+            )
+          }
+
           return (
             <div key={u.email} className={`wl-row ${isSelf ? 'wl-self' : ''}`}>
               <span className={`role-tag role-${u.role}`}>{u.role}</span>
               <span className="wl-code">{u.code || '—'}</span>
               <span className="wl-name">{u.name || '—'}{isSelf && <span className="wl-you">you</span>}</span>
               <span className="wl-email">{u.email}</span>
-              {isSelf
-                ? <span className="wl-locked" title="You can't remove your own admin">🔒</span>
-                : <button className="wl-del" onClick={() => remove(u.email)}>×</button>}
+              <div className="wl-row-actions">
+                <button className="wl-edit-btn" onClick={() => startEdit(u)}>Edit</button>
+                {isSelf
+                  ? <span className="wl-locked" title="You can't remove your own admin">🔒</span>
+                  : <button className="wl-del" onClick={() => remove(u.email)}>×</button>}
+              </div>
             </div>
           )
         })}
