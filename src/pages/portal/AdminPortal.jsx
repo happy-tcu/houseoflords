@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import PortalShell from '../../components/PortalShell'
 import { supabase } from '../../lib/supabase'
-import { useRealtime } from '../../lib/realtime'
+import { useRealtime, useTick } from '../../lib/realtime'
 import { useAuth } from '../../lib/auth'
 import { ROUNDS as MOTION_ROUNDS } from '../../data/motions'
+import { SEGMENT_MAP, fmt, computeRemaining } from '../../lib/segments'
 
 const ROUND_STATES = ['locked', 'prep', 'debate', 'voting', 'done']
 
@@ -39,12 +40,13 @@ export default function AdminPortal() {
 
       <div className="admin-tabs">
         {[
-          ['rounds', 'Round Control'],
-          ['motions', 'Motion Picker'],
-          ['ballots', 'Ballot Tracker'],
-          ['standings', 'Standings'],
-          ['broadcast', 'Announcements'],
-          ['whitelist', 'Roster'],
+          ['rounds',   'Round Control'],
+          ['live',     'Live Rooms'],
+          ['motions',  'Motion Picker'],
+          ['ballots',  'Ballot Tracker'],
+          ['standings','Standings'],
+          ['broadcast','Announcements'],
+          ['whitelist','Roster'],
         ].map(([k, l]) => (
           <button key={k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>
         ))}
@@ -53,6 +55,7 @@ export default function AdminPortal() {
       {tab === 'rounds' && <RoundsTab rounds={rounds || []} pairingsByRound={pairingsByRound}
                                      motionsByRound={motionsByRound} ballotsByRound={ballotsByRound}
                                      onMsg={setMsg} />}
+      {tab === 'live' && <LiveRoomsTab rounds={rounds || []} pairings={pairings || []} motions={motions || []} ballots={ballots || []} />}
       {tab === 'motions' && <MotionsTab rounds={rounds || []} motionsByRound={motionsByRound} onMsg={setMsg} />}
       {tab === 'ballots' && <BallotsTab rounds={rounds || []} pairingsByRound={pairingsByRound}
                                        ballotsByRound={ballotsByRound} />}
@@ -131,6 +134,96 @@ function RoundsTab({ rounds, pairingsByRound, motionsByRound, ballotsByRound, on
           </div>
         )
       })}
+    </div>
+  )
+}
+
+/* ---------------- LIVE ROOMS ---------------- */
+function LiveRoomsTab({ rounds, pairings, motions, ballots }) {
+  useTick(500)
+  const [filterR, setFilterR] = useState('all')
+  const [q, setQ] = useState('')
+
+  const shownRounds = filterR === 'all' ? rounds : rounds.filter(r => r.id === filterR)
+
+  return (
+    <div className="live-rooms">
+      <div className="live-controls">
+        <div className="live-filter">
+          <button className={filterR === 'all' ? 'active' : ''} onClick={() => setFilterR('all')}>All</button>
+          {rounds.map(r => (
+            <button key={r.id} className={filterR === r.id ? 'active' : ''} onClick={() => setFilterR(r.id)}>{r.id}</button>
+          ))}
+        </div>
+        <input className="live-search" placeholder="Filter by code, room, judge…"
+               value={q} onChange={e => setQ(e.target.value)} />
+      </div>
+
+      {shownRounds.map(r => {
+        const pp = pairings.filter(p => p.round_id === r.id)
+          .filter(p => !q || `${p.room} ${p.aff_code} ${p.opp_code} ${p.judge_code}`.toLowerCase().includes(q.toLowerCase()))
+        if (pp.length === 0) return null
+        const roundMotions = motions.filter(m => m.round_id === r.id)
+        return (
+          <div key={r.id} className="live-round-block">
+            <div className="live-round-hd">
+              <span className="rc-code">{r.id}</span>
+              <span className={`rc-state rc-state-${r.state}`}>{r.state}</span>
+              <span className="live-round-count">{pp.length} rooms</span>
+            </div>
+            <div className="live-grid">
+              {pp.sort((a,b) => a.room - b.room).map(p => (
+                <RoomCard key={p.id} pairing={p} roundMotions={roundMotions}
+                          ballot={ballots.find(b => b.round_id === r.id && b.room === p.room)} />
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function RoomCard({ pairing, roundMotions, ballot }) {
+  const seg = SEGMENT_MAP[pairing.segment] || SEGMENT_MAP.idle
+  const remaining = computeRemaining(pairing.segment_ends_at)
+  const finalMotion = roundMotions.find(m => m.id === pairing.final_motion_id)
+  const strikes = (pairing.struck_motion_ids || []).length
+  const totalMotions = roundMotions.length
+  const strikesLeft = Math.max(0, totalMotions - 1 - strikes)
+  const finished = !!ballot
+
+  const stage = finished ? 'done'
+    : finalMotion ? seg.kind
+    : totalMotions === 0 ? 'idle'
+    : 'strike'
+
+  const status = finished ? 'Ballot submitted'
+    : finalMotion ? seg.label
+    : totalMotions === 0 ? 'Waiting for motions'
+    : `Striking — ${strikes}/${totalMotions - 1} · ${pairing.strike_turn.toUpperCase()}'s turn`
+
+  return (
+    <div className={`rm-card rm-${stage}`}>
+      <div className="rm-hdr">
+        <span className="rm-num">#{pairing.room}</span>
+        <span className="rm-judge">{pairing.judge_code}</span>
+      </div>
+      <div className="rm-teams">
+        <span className="rm-team aff">{pairing.aff_code}</span>
+        <span className="rm-vs">vs</span>
+        <span className="rm-team opp">{pairing.opp_code}</span>
+      </div>
+      <div className="rm-status">{status}</div>
+      {seg.seconds > 0 && !finished && (
+        <div className="rm-time">{fmt(remaining)}</div>
+      )}
+      {finalMotion && (
+        <div className="rm-motion" title={finalMotion.text}>
+          <span className="tag" style={{background: finalMotion.kind === 'Policy' ? '#1dafec' : finalMotion.kind === 'Value' ? '#efb34a' : '#8cc63e'}}>{finalMotion.kind}</span>
+          <span className="rm-motion-text">{finalMotion.text}</span>
+        </div>
+      )}
     </div>
   )
 }
