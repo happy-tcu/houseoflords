@@ -306,10 +306,19 @@ function BroadcastTab({ announcements, onMsg }) {
 }
 
 /* ---------------- WHITELIST ---------------- */
+const ALL_SCHOLAR_CODES = 'ABCDEF'.split('').flatMap(c => Array.from({length:10}, (_,i) => `${c}${i+1}`))
+const ALL_JUDGE_CODES = Array.from({length:30}, (_,i) => `J${i+1}`)
+
 function WhitelistTab({ onMsg }) {
-  const [text, setText] = useState('')
-  const [busy, setBusy] = useState(false)
   const [users, setUsers] = useState([])
+  const [busy, setBusy] = useState(false)
+  const [showBulk, setShowBulk] = useState(false)
+  const [bulk, setBulk] = useState('')
+
+  const [email, setEmail] = useState('')
+  const [role, setRole] = useState('scholar')
+  const [code, setCode] = useState('')
+  const [name, setName] = useState('')
 
   useEffect(() => { load() }, [])
   async function load() {
@@ -317,33 +326,111 @@ function WhitelistTab({ onMsg }) {
     setUsers(data || [])
   }
 
-  async function bulkImport(e) {
+  const takenCodes = new Set(users.map(u => u.code).filter(Boolean))
+  const availableCodes = useMemo(() => {
+    const pool = role === 'scholar' ? ALL_SCHOLAR_CODES
+              : role === 'judge'   ? ALL_JUDGE_CODES : []
+    return pool.filter(c => !takenCodes.has(c))
+  }, [role, users])
+
+  async function invite(e) {
     e.preventDefault(); setBusy(true); onMsg(null)
-    const rows = text.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
-      const [email, role, code, name] = line.split(',').map(s => s?.trim())
-      return { email: email?.toLowerCase(), role, code: code || null, name: name || null }
-    }).filter(r => r.email && r.role)
-    if (rows.length === 0) { onMsg('Nothing to import.'); setBusy(false); return }
-    const { error } = await supabase.from('allowed_users').upsert(rows, { onConflict: 'email' })
-    if (error) onMsg(error.message); else { onMsg(`Imported ${rows.length} rows`); setText(''); load() }
+    const row = {
+      email: email.trim().toLowerCase(),
+      role,
+      code: role === 'admin' ? null : (code || null),
+      name: name.trim() || null,
+    }
+    if (!row.email) { onMsg('Email required'); setBusy(false); return }
+    if (role !== 'admin' && !row.code) { onMsg('Pick a code'); setBusy(false); return }
+    const { error } = await supabase.from('allowed_users').upsert([row], { onConflict: 'email' })
+    if (error) onMsg(error.message)
+    else { onMsg(`Invited ${row.email}`); setEmail(''); setCode(''); setName(''); load() }
     setBusy(false)
   }
 
-  async function remove(email) {
-    if (!confirm(`Remove ${email}?`)) return
-    const { error } = await supabase.from('allowed_users').delete().eq('email', email)
+  async function remove(em) {
+    if (!confirm(`Remove ${em}?`)) return
+    const { error } = await supabase.from('allowed_users').delete().eq('email', em)
     if (error) onMsg(error.message); else load()
+  }
+
+  async function bulkImport(e) {
+    e.preventDefault(); setBusy(true); onMsg(null)
+    const rows = bulk.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+      const [em, r, c, n] = line.split(',').map(s => s?.trim())
+      return { email: em?.toLowerCase(), role: r, code: c || null, name: n || null }
+    }).filter(r => r.email && r.role)
+    if (rows.length === 0) { onMsg('Nothing to import.'); setBusy(false); return }
+    const { error } = await supabase.from('allowed_users').upsert(rows, { onConflict: 'email' })
+    if (error) onMsg(error.message); else { onMsg(`Imported ${rows.length}`); setBulk(''); load() }
+    setBusy(false)
   }
 
   return (
     <div className="whitelist">
-      <form onSubmit={bulkImport} className="ballot-form">
-        <label className="note-row"><span>Bulk import (one per line: email, role, code, name)</span>
-          <textarea rows="6" value={text} onChange={e => setText(e.target.value)}
-                    placeholder="alice@school.edu, scholar, A1, Alice K.&#10;bob@school.edu, judge, J5, Dr. Bob&#10;organizer@isomo.org, admin, ,Isomo Ops"/>
-        </label>
-        <button className="btn-primary" disabled={busy}>{busy ? 'Importing…' : 'Import / Upsert'}</button>
+      <form onSubmit={invite} className="invite-card">
+        <div className="invite-row">
+          <div className="invite-field grow">
+            <label>Email</label>
+            <input type="email" required value={email}
+                   onChange={e => setEmail(e.target.value)}
+                   placeholder="name@example.com" />
+          </div>
+          <div className="invite-field">
+            <label>Name (optional)</label>
+            <input type="text" value={name}
+                   onChange={e => setName(e.target.value)}
+                   placeholder="Full name" />
+          </div>
+        </div>
+
+        <div className="invite-row">
+          <div className="invite-field">
+            <label>Role</label>
+            <div className="role-picker">
+              {['scholar','judge','admin'].map(r => (
+                <button type="button" key={r}
+                        className={`role-btn role-${r} ${role === r ? 'sel' : ''}`}
+                        onClick={() => { setRole(r); setCode('') }}>
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {role !== 'admin' && (
+            <div className="invite-field grow">
+              <label>Code {availableCodes.length ? `(${availableCodes.length} available)` : '(none available)'}</label>
+              <select required value={code} onChange={e => setCode(e.target.value)}>
+                <option value="">— choose {role} code —</option>
+                {availableCodes.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          )}
+        </div>
+
+        <div className="invite-actions">
+          <button className="btn-primary" disabled={busy}>
+            {busy ? 'Inviting…' : `Invite as ${role}`}
+          </button>
+          <button type="button" className="btn-secondary"
+                  onClick={() => setShowBulk(v => !v)}>
+            {showBulk ? 'Hide bulk import' : 'Bulk import (CSV)'}
+          </button>
+        </div>
       </form>
+
+      {showBulk && (
+        <form onSubmit={bulkImport} className="ballot-form" style={{marginTop: 16}}>
+          <label className="note-row">
+            <span>One per line: email, role, code, name</span>
+            <textarea rows="5" value={bulk} onChange={e => setBulk(e.target.value)}
+                      placeholder="alice@school.edu, scholar, A1, Alice K."/>
+          </label>
+          <button className="btn-primary" disabled={busy}>{busy ? 'Importing…' : 'Import'}</button>
+        </form>
+      )}
 
       <h2 className="portal-h2">Current roster ({users.length})</h2>
       <div className="wl-list">

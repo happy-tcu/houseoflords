@@ -1234,3 +1234,47 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
 .strike-badge.waiting { color: var(--muted); }
 .strike-btn { padding: 8px 16px !important; font-size: 12px !important; }
 
+/* ============= INVITE FORM ============= */
+.invite-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 4px; padding: 20px; box-shadow: var(--shadow-sm);
+}
+.invite-row {
+  display: grid; grid-template-columns: 2fr 1fr; gap: 16px;
+  margin-bottom: 14px;
+}
+@media (max-width: 720px) { .invite-row { grid-template-columns: 1fr; } }
+.invite-field { display: flex; flex-direction: column; gap: 6px; }
+.invite-field.grow { grid-column: span 2; }
+@media (max-width: 720px) { .invite-field.grow { grid-column: auto; } }
+.invite-field label {
+  font-family: 'Montserrat'; font-weight: 700; font-size: 11px;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted);
+}
+.invite-field input, .invite-field select {
+  padding: 10px 14px; border: 1px solid var(--border); border-radius: 3px;
+  font-family: 'Open Sans', sans-serif; font-size: 14px;
+  background: var(--panel);
+}
+.invite-field input:focus, .invite-field select:focus {
+  border-color: var(--brand-green); outline: none;
+}
+.role-picker { display: flex; gap: 6px; }
+.role-btn {
+  flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: 3px;
+  background: var(--panel-2); cursor: pointer;
+  font-family: 'Montserrat'; font-weight: 700; font-size: 12px;
+  letter-spacing: 1px; text-transform: uppercase; color: var(--muted);
+  transition: all 0.15s;
+}
+.role-btn:hover { color: var(--brand-dark); }
+.role-btn.sel { background: var(--brand-dark); color: #fff; border-color: var(--brand-dark); }
+.role-btn.role-scholar.sel { background: var(--brand-green-2); border-color: var(--brand-green-2); }
+.role-btn.role-judge.sel   { background: var(--brand-blue); border-color: var(--brand-blue); }
+.role-btn.role-admin.sel   { background: var(--brand-dark); border-color: var(--brand-dark); }
+
+.invite-actions {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding-top: 12px; border-top: 1px dashed var(--border);
+}
+
