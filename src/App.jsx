@@ -1,28 +1,34 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './lib/auth'
+import Home from './pages/Home'
 import Login from './pages/Login'
 import AuthCallback from './pages/AuthCallback'
 import Unauthorized from './pages/Unauthorized'
-import Scholar from './pages/Scholar'
-import Judge from './pages/Judge'
-import Admin from './pages/Admin'
-import Home from './pages/Home'
+import MotionsPage from './pages/public/Motions'
+import AssignmentsPage from './pages/public/Assignments'
+import FormatPage from './pages/public/Format'
+import RunOfShowPage from './pages/public/RunOfShow'
+import JudgingPage from './pages/public/Judging'
+import AdminPortal from './pages/portal/AdminPortal'
+import JudgePortal from './pages/portal/JudgePortal'
+import DebaterPortal from './pages/portal/DebaterPortal'
 
 function Protected({ role, children }) {
   const { status, profile } = useAuth()
   if (status === 'loading') return <div className="loading">Loading…</div>
-  if (status === 'anonymous') return <Navigate to="/login" replace />
+  if (status === 'anonymous') return <Navigate to="/" replace />
   if (status === 'unauthorized') return <Navigate to="/unauthorized" replace />
-  if (role && profile?.role !== role) return <Navigate to="/" replace />
+  if (role && profile?.role !== role) return <Navigate to="/me" replace />
   return children
 }
 
 function RoleRouter() {
-  const { profile } = useAuth()
-  if (!profile) return <Navigate to="/login" replace />
-  if (profile.role === 'scholar') return <Navigate to="/scholar" replace />
-  if (profile.role === 'judge')   return <Navigate to="/judge" replace />
+  const { status, profile } = useAuth()
+  if (status === 'loading') return <div className="loading">Loading…</div>
+  if (status !== 'ready' || !profile) return <Navigate to="/" replace />
   if (profile.role === 'admin')   return <Navigate to="/admin" replace />
+  if (profile.role === 'judge')   return <Navigate to="/judge" replace />
+  if (profile.role === 'scholar') return <Navigate to="/debater" replace />
   return <Navigate to="/unauthorized" replace />
 }
 
@@ -31,14 +37,26 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route path="/unauthorized" element={<Unauthorized />} />
-          <Route path="/me" element={<RoleRouter />} />
-          <Route path="/scholar" element={<Protected role="scholar"><Scholar /></Protected>} />
-          <Route path="/judge"   element={<Protected role="judge"><Judge /></Protected>} />
-          <Route path="/admin"   element={<Protected role="admin"><Admin /></Protected>} />
+          {/* Public */}
+          <Route path="/"            element={<Home />} />
+          <Route path="/motions"     element={<MotionsPage />} />
+          <Route path="/assignments" element={<AssignmentsPage />} />
+          <Route path="/format"      element={<FormatPage />} />
+          <Route path="/runofshow"   element={<RunOfShowPage />} />
+          <Route path="/judging"     element={<JudgingPage />} />
+
+          {/* Auth */}
+          <Route path="/login"          element={<Login />} />
+          <Route path="/auth/callback"  element={<AuthCallback />} />
+          <Route path="/unauthorized"   element={<Unauthorized />} />
+          <Route path="/me"             element={<RoleRouter />} />
+
+          {/* Portals */}
+          <Route path="/admin"    element={<Protected role="admin"><AdminPortal /></Protected>} />
+          <Route path="/judge"    element={<Protected role="judge"><JudgePortal /></Protected>} />
+          <Route path="/debater"  element={<Protected role="scholar"><DebaterPortal /></Protected>} />
+
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
