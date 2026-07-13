@@ -8,6 +8,7 @@ const TABS = [
   { to: '/format',      label: 'Format' },
   { to: '/runofshow',   label: 'Run of Show' },
   { to: '/judging',     label: 'Judging' },
+  { to: '/standings',   label: 'Standings' },
 ]
 
 export default function PublicShell({ children }) {

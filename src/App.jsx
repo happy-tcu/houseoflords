@@ -9,6 +9,9 @@ import AssignmentsPage from './pages/public/Assignments'
 import FormatPage from './pages/public/Format'
 import RunOfShowPage from './pages/public/RunOfShow'
 import JudgingPage from './pages/public/Judging'
+import StandingsPage from './pages/public/Standings'
+import RoomSigns from './pages/public/RoomSigns'
+import Certificate from './pages/public/Certificate'
 import AdminPortal from './pages/portal/AdminPortal'
 import JudgePortal from './pages/portal/JudgePortal'
 import DebaterPortal from './pages/portal/DebaterPortal'
@@ -44,6 +47,9 @@ export default function App() {
           <Route path="/format"      element={<FormatPage />} />
           <Route path="/runofshow"   element={<RunOfShowPage />} />
           <Route path="/judging"     element={<JudgingPage />} />
+          <Route path="/standings"   element={<StandingsPage />} />
+          <Route path="/room-signs"  element={<RoomSigns />} />
+          <Route path="/certificate" element={<Certificate />} />
 
           {/* Auth */}
           <Route path="/login"          element={<Login />} />

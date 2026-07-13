@@ -1,9 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useRealtime } from '../lib/realtime'
+import { useAuth } from '../lib/auth'
 
 const SHOW_MS = 10000
 
+const AUDIENCE_MAP = {
+  scholar: ['all', 'scholars'],
+  judge:   ['all', 'judges'],
+  admin:   ['all', 'admins'],
+}
+
 export default function Announcements() {
+  const { profile } = useAuth()
+  const allowed = new Set(AUDIENCE_MAP[profile?.role] || ['all'])
   const { rows } = useRealtime('announcements',
     { order: { column: 'created_at', ascending: false } }, [])
   const [dismissed, setDismissed] = useState(new Set())
@@ -16,7 +25,9 @@ export default function Announcements() {
 
   const visible = (rows || []).filter(a => {
     const age = now - new Date(a.created_at).getTime()
-    return age >= 0 && age < SHOW_MS && !dismissed.has(a.id)
+    if (!(age >= 0 && age < SHOW_MS)) return false
+    if (dismissed.has(a.id)) return false
+    return allowed.has(a.audience || 'all')
   })
 
   if (visible.length === 0) return null

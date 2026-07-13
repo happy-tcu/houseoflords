@@ -146,6 +146,7 @@ function RoundsTab({ rounds, pairingsByRound, motionsByRound, ballotsByRound, on
 /* ---------------- LIVE ROOMS ---------------- */
 function LiveRoomsTab({ rounds, pairings, motions, ballots }) {
   useTick(500)
+  const { rows: drafts } = useRealtime('ballot_drafts', {}, [])
   const [filterR, setFilterR] = useState('all')
   const [q, setQ] = useState('')
 
@@ -179,7 +180,8 @@ function LiveRoomsTab({ rounds, pairings, motions, ballots }) {
             <div className="live-grid">
               {pp.sort((a,b) => a.room - b.room).map(p => (
                 <RoomCard key={p.id} pairing={p} roundMotions={roundMotions}
-                          ballot={ballots.find(b => b.round_id === r.id && b.room === p.room)} />
+                          ballot={ballots.find(b => b.round_id === r.id && b.room === p.room)}
+                          hasDraft={(drafts || []).some(d => d.round_id === r.id && d.room === p.room)} />
               ))}
             </div>
           </div>
@@ -189,38 +191,54 @@ function LiveRoomsTab({ rounds, pairings, motions, ballots }) {
   )
 }
 
-function RoomCard({ pairing, roundMotions, ballot }) {
+function RoomCard({ pairing, roundMotions, ballot, hasDraft, allJudges }) {
   const seg = SEGMENT_MAP[pairing.segment] || SEGMENT_MAP.idle
   const remaining = computeRemaining(pairing.segment_ends_at)
   const finalMotion = roundMotions.find(m => m.id === pairing.final_motion_id)
   const strikes = (pairing.struck_motion_ids || []).length
   const totalMotions = roundMotions.length
-  const strikesLeft = Math.max(0, totalMotions - 1 - strikes)
   const finished = !!ballot
+  const walkover = pairing.absent_aff || pairing.absent_opp
 
   const stage = finished ? 'done'
+    : walkover ? 'done'
     : finalMotion ? seg.kind
     : totalMotions === 0 ? 'idle'
     : 'strike'
 
   const status = finished ? 'Ballot submitted'
+    : walkover ? `${pairing.absent_aff ? 'Aff' : 'Opp'} absent — walkover`
     : finalMotion ? seg.label
     : totalMotions === 0 ? 'Waiting for motions'
     : `Striking — ${strikes}/${totalMotions - 1} · ${pairing.strike_turn.toUpperCase()}'s turn`
+
+  async function toggleAbsent(side) {
+    const key = side === 'aff' ? 'absent_aff' : 'absent_opp'
+    await supabase.from('pairings').update({ [key]: !pairing[key] }).eq('id', pairing.id)
+  }
+  async function reassign() {
+    const newJ = prompt(`Reassign judge for Room #${pairing.room} (currently ${pairing.judge_code}). Enter new J-code:`)
+    if (!newJ) return
+    const { error } = await supabase.rpc('reassign_judge', { p_pairing: pairing.id, p_new_judge: newJ.trim() })
+    if (error) alert(error.message)
+  }
 
   return (
     <div className={`rm-card rm-${stage}`}>
       <div className="rm-hdr">
         <span className="rm-num">#{pairing.room}</span>
-        <span className="rm-judge">{pairing.judge_code}</span>
+        <span className="rm-judge" title="Click to reassign" onClick={reassign} style={{cursor:'pointer'}}>{pairing.judge_code}</span>
       </div>
       <div className="rm-teams">
-        <span className="rm-team aff">{pairing.aff_code}</span>
+        <span className={`rm-team aff ${pairing.absent_aff ? 'absent' : ''}`}
+              title="Click to toggle absent" onClick={() => toggleAbsent('aff')}>{pairing.aff_code}</span>
         <span className="rm-vs">vs</span>
-        <span className="rm-team opp">{pairing.opp_code}</span>
+        <span className={`rm-team opp ${pairing.absent_opp ? 'absent' : ''}`}
+              title="Click to toggle absent" onClick={() => toggleAbsent('opp')}>{pairing.opp_code}</span>
       </div>
       <div className="rm-status">{status}</div>
-      {seg.seconds > 0 && !finished && (
+      {hasDraft && !finished && <div className="rm-draft">Draft in progress</div>}
+      {seg.seconds > 0 && !finished && !walkover && (
         <div className="rm-time">{fmt(remaining)}</div>
       )}
       {finalMotion && (
@@ -328,6 +346,24 @@ function BallotsTab({ rounds, pairingsByRound, ballotsByRound }) {
 
 /* ---------------- STANDINGS ---------------- */
 function StandingsTab({ pairings, ballots }) {
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState(null)
+  async function buildBracket() {
+    if (!confirm('Build the R4 semi bracket from top 4 prelims? Existing R4/R5 pairings will be replaced.')) return
+    setBusy(true); setNote(null)
+    const { error } = await supabase.rpc('build_bracket')
+    if (error) setNote(`Error: ${error.message}`)
+    else setNote('Bracket built — R4 pairings live')
+    setBusy(false)
+  }
+  async function fillFinal() {
+    if (!confirm('Fill the R5 final with winners of R4?')) return
+    setBusy(true); setNote(null)
+    const { error } = await supabase.rpc('fill_final')
+    if (error) setNote(`Error: ${error.message}`)
+    else setNote('R5 final populated with R4 winners')
+    setBusy(false)
+  }
   const stats = useMemo(() => {
     const s = {}   // { code: { wins, points, appearances } }
     for (const b of ballots) {
@@ -345,9 +381,18 @@ function StandingsTab({ pairings, ballots }) {
     return Object.values(s).sort((a, b) => b.wins - a.wins || b.points - a.points)
   }, [pairings, ballots])
 
-  if (stats.length === 0) return <div className="portal-empty"><b>No results yet.</b><span>Standings populate as ballots come in.</span></div>
-
   return (
+    <>
+    <div className="bracket-actions">
+      {note && <div className="portal-msg">{note}</div>}
+      <button className="btn-primary" onClick={buildBracket} disabled={busy || stats.length < 4}>
+        Build R4 semi from top 4
+      </button>
+      <button className="btn-secondary" onClick={fillFinal} disabled={busy}>Fill R5 final</button>
+    </div>
+    {stats.length === 0 ? (
+      <div className="portal-empty"><b>No results yet.</b><span>Standings populate as ballots come in.</span></div>
+    ) : (
     <div className="standings">
       <table className="fmt-table">
         <thead><tr><th>#</th><th>Speaker</th><th>Wins</th><th>Total Points</th><th>Debates</th></tr></thead>
@@ -365,6 +410,8 @@ function StandingsTab({ pairings, ballots }) {
       </table>
       <div className="portal-hint">Top 4 advance to R4 Semi. Wins → total points as tiebreaker.</div>
     </div>
+    )}
+    </>
   )
 }
 
@@ -372,12 +419,13 @@ function StandingsTab({ pairings, ballots }) {
 function BroadcastTab({ announcements, onMsg }) {
   const [body, setBody] = useState('')
   const [kind, setKind] = useState('info')
+  const [audience, setAudience] = useState('all')
   const [busy, setBusy] = useState(false)
   async function send(e) {
     e.preventDefault(); setBusy(true); onMsg(null)
-    const { error } = await supabase.from('announcements').insert({ body, kind })
+    const { error } = await supabase.from('announcements').insert({ body, kind, audience })
     if (error) onMsg(error.message)
-    else { setBody(''); onMsg('Broadcast sent') }
+    else { setBody(''); onMsg(`Broadcast sent to ${audience}`) }
     setBusy(false)
   }
   return (
@@ -392,6 +440,12 @@ function BroadcastTab({ announcements, onMsg }) {
             <option value="info">Info</option>
             <option value="warn">Warning</option>
             <option value="urgent">Urgent</option>
+          </select>
+          <select value={audience} onChange={e => setAudience(e.target.value)}>
+            <option value="all">Everyone</option>
+            <option value="scholars">Scholars only</option>
+            <option value="judges">Judges only</option>
+            <option value="admins">Admins only</option>
           </select>
           <button className="btn-primary" disabled={busy}>{busy ? 'Sending…' : 'Send'}</button>
         </div>

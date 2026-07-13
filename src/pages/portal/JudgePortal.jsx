@@ -50,6 +50,8 @@ export default function JudgePortal() {
   const [ballot, setBallot] = useState(empty)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
+  const [draftSyncing, setDraftSyncing] = useState(false)
+  const [draftSavedAt, setDraftSavedAt] = useState(null)
   useTick(500)
 
   const { rows: rounds } = useRealtime('rounds', {}, [])
@@ -80,6 +82,34 @@ export default function JudgePortal() {
     ? (ballots || []).find(b => b.round_id === active.id && b.room === mine.room)
     : null
 
+  // Load draft when room becomes known
+  useEffect(() => {
+    (async () => {
+      if (!active || !mine || existing) return
+      const { data } = await supabase.from('ballot_drafts').select('*')
+        .eq('round_id', active.id).eq('room', mine.room).eq('judge_code', profile.code)
+        .maybeSingle()
+      if (data?.data) setBallot(prev => ({ ...prev, ...data.data }))
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.id, mine?.room, profile?.code, existing?.id])
+
+  // Debounced autosave
+  useEffect(() => {
+    if (!active || !mine || existing) return
+    const t = setTimeout(async () => {
+      setDraftSyncing(true)
+      const { error } = await supabase.from('ballot_drafts').upsert(
+        { round_id: active.id, room: mine.room, judge_code: profile.code, data: ballot, updated_at: new Date().toISOString() },
+        { onConflict: 'round_id,room,judge_code' }
+      )
+      setDraftSyncing(false)
+      if (!error) setDraftSavedAt(new Date())
+    }, 1200)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ballot])
+
   function set(field, val) { setBallot(b => ({ ...b, [field]: val })) }
 
   async function onSubmit(e) {
@@ -99,6 +129,9 @@ export default function JudgePortal() {
       row.speech_notes = ballot.speech_notes || {}
       const { error } = await supabase.from('ballots').insert(row)
       if (error) throw error
+      // drop the draft
+      await supabase.from('ballot_drafts').delete()
+        .eq('round_id', active.id).eq('room', mine.room).eq('judge_code', profile.code)
       setMsg('Ballot submitted.'); setBallot(empty())
     } catch (e) { setMsg(`Error: ${e.message}`) }
     setBusy(false)
@@ -199,7 +232,11 @@ export default function JudgePortal() {
                   <div className="speech-notes-card">
                     <div className="sn-hdr">
                       <span className="sn-kicker">Speech Notes</span>
-                      <span className="sn-hint">Take notes as speeches happen. Auto-saved when you submit.</span>
+                      <span className="sn-hint">
+                        {draftSyncing ? 'Saving draft…'
+                          : draftSavedAt ? `Draft saved ${draftSavedAt.toLocaleTimeString()}`
+                          : 'Auto-saved every second'}
+                      </span>
                     </div>
                     {SPEECHES.map(sp => (
                       <label key={sp.key} className="sn-row">
