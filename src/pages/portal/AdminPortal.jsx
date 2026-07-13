@@ -57,6 +57,7 @@ export default function AdminPortal() {
           ['ballots',  'Ballot Tracker'],
           ['standings','Standings'],
           ['broadcast','Announcements'],
+          ['certs',   'Certificates'],
           ['whitelist','Roster'],
         ].map(([k, l]) => (
           <button key={k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>
@@ -72,6 +73,7 @@ export default function AdminPortal() {
                                        ballotsByRound={ballotsByRound} />}
       {tab === 'standings' && <StandingsTab pairings={pairings || []} ballots={ballots || []} />}
       {tab === 'broadcast' && <BroadcastTab announcements={announcements || []} onMsg={setMsg} />}
+      {tab === 'certs'     && <CertificatesTab onMsg={setMsg} />}
       {tab === 'whitelist' && <WhitelistTab onMsg={setMsg} />}
     </PortalShell>
   )
@@ -472,6 +474,71 @@ function BroadcastTab({ announcements, onMsg }) {
           <div key={a.id} className={`ann ann-${a.kind}`}>
             <span className="ann-when">{new Date(a.created_at).toLocaleTimeString()}</span>
             <span className="ann-body">{a.body}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ---------------- CERTIFICATES ---------------- */
+function CertificatesTab({ onMsg }) {
+  const { rows: reqs } = useRealtime('certificate_requests',
+    { order: { column: 'requested_at', ascending: false } }, [])
+  const [busy, setBusy] = useState(null)
+
+  async function approve(id) {
+    setBusy(id); onMsg(null)
+    const { error } = await supabase.rpc('approve_certificate', { p_request: id })
+    if (error) onMsg(error.message); else onMsg('Certificate approved')
+    setBusy(null)
+  }
+  async function remove(id) {
+    if (!confirm('Delete this certificate request?')) return
+    const { error } = await supabase.from('certificate_requests').delete().eq('id', id)
+    if (error) onMsg(error.message)
+  }
+
+  const pending = (reqs || []).filter(r => !r.approved_at)
+  const approved = (reqs || []).filter(r => r.approved_at)
+
+  return (
+    <div className="cert-admin">
+      <h2 className="portal-h2">Pending signature ({pending.length})</h2>
+      {pending.length === 0 && (
+        <div className="portal-empty"><b>No requests waiting.</b>
+          <span>New certificate requests appear here in real time.</span>
+        </div>
+      )}
+      <div className="cert-list">
+        {pending.map(r => (
+          <div key={r.id} className="cert-row wait">
+            <span className="cert-code">{r.code}</span>
+            <span className="cert-placement">{r.placement}</span>
+            <span className="cert-name">{r.name}</span>
+            <span className="cert-when">{new Date(r.requested_at).toLocaleString()}</span>
+            <div className="cert-actions">
+              <button className="btn-primary" onClick={() => approve(r.id)} disabled={busy === r.id}>
+                {busy === r.id ? 'Signing…' : '✓ Sign & approve'}
+              </button>
+              <button className="wl-del" onClick={() => remove(r.id)} title="Reject">×</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h2 className="portal-h2">Approved ({approved.length})</h2>
+      <div className="cert-list">
+        {approved.map(r => (
+          <div key={r.id} className="cert-row ok">
+            <span className="cert-code">{r.code}</span>
+            <span className="cert-placement">{r.placement}</span>
+            <span className="cert-name">{r.name}</span>
+            <span className="cert-when">{new Date(r.approved_at).toLocaleString()}</span>
+            <div className="cert-actions">
+              <span className="cert-signed">Signed · {r.signature_name}</span>
+              <button className="wl-del" onClick={() => remove(r.id)} title="Revoke">×</button>
+            </div>
           </div>
         ))}
       </div>
