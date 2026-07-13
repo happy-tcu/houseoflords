@@ -36,6 +36,10 @@ export default function JudgeTimer({ pairing }) {
 
   async function restartSpeech() {
     if (cur.key === 'idle' || cur.key === 'done' || cur.seconds <= 0) return
+    if (cur.key === 'voting') {
+      alert("Can't restart the voting segment — it would re-lock the ballot.")
+      return
+    }
     if (!confirm(`Restart ${cur.label}?`)) return
     const ends = new Date(Date.now() + cur.seconds * 1000).toISOString()
     const { error } = await supabase.from('pairings')

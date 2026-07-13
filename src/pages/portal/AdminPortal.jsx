@@ -214,7 +214,10 @@ function RoomCard({ pairing, roundMotions, ballot, hasDraft, allJudges }) {
 
   async function toggleAbsent(side) {
     const key = side === 'aff' ? 'absent_aff' : 'absent_opp'
-    await supabase.from('pairings').update({ [key]: !pairing[key] }).eq('id', pairing.id)
+    const code = side === 'aff' ? pairing.aff_code : pairing.opp_code
+    const willBeAbsent = !pairing[key]
+    if (!confirm(`Mark ${code} ${willBeAbsent ? 'ABSENT (walkover)' : 'present'}?`)) return
+    await supabase.from('pairings').update({ [key]: willBeAbsent }).eq('id', pairing.id)
   }
   async function reassign() {
     const newJ = prompt(`Reassign judge for Room #${pairing.room} (currently ${pairing.judge_code}). Enter new J-code:`)

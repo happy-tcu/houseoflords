@@ -40,10 +40,12 @@ export default function MotionStriking({ pairing, motions, mySide, canReset }) {
           <div className="strike-kicker">Motion striking · Opp strikes first, teams alternate</div>
           <div className="strike-title">
             {finalId
-              ? '✓ Motion locked — this is your debate motion'
+              ? '✓ Motion locked — this is the debate motion'
               : yourTurn
                 ? `Your turn — strike one motion`
-                : `Waiting on ${otherSide} to strike…`
+                : mySide
+                  ? `Waiting on ${otherSide} to strike…`
+                  : `Room in strike phase · ${otherSide}'s turn`
             }
           </div>
         </div>
