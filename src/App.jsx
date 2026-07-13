@@ -16,12 +16,13 @@ import AdminPortal from './pages/portal/AdminPortal'
 import JudgePortal from './pages/portal/JudgePortal'
 import DebaterPortal from './pages/portal/DebaterPortal'
 
-function Protected({ role, children }) {
+function Protected({ role, roles, children }) {
   const { status, profile } = useAuth()
   if (status === 'loading') return <div className="loading">Loading…</div>
   if (status === 'anonymous') return <Navigate to="/" replace />
   if (status === 'unauthorized') return <Navigate to="/unauthorized" replace />
   if (role && profile?.role !== role) return <Navigate to="/me" replace />
+  if (roles && !roles.includes(profile?.role)) return <Navigate to="/me" replace />
   return children
 }
 
@@ -48,8 +49,10 @@ export default function App() {
           <Route path="/runofshow"   element={<RunOfShowPage />} />
           <Route path="/judging"     element={<JudgingPage />} />
           <Route path="/standings"   element={<StandingsPage />} />
-          <Route path="/room-signs"  element={<RoomSigns />} />
-          <Route path="/certificate" element={<Certificate />} />
+          <Route path="/room-signs"  element={<Protected role="admin"><RoomSigns /></Protected>} />
+          <Route path="/certificate" element={
+            <Protected roles={['scholar','judge','admin']}><Certificate /></Protected>
+          } />
 
           {/* Auth */}
           <Route path="/login"          element={<Login />} />

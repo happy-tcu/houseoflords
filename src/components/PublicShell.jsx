@@ -1,21 +1,33 @@
 import { NavLink, Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 
-const TABS = [
-  { to: '/',            label: 'Home'    },
+// Info tabs (public — everyone sees these).
+const INFO_TABS = [
+  { to: '/',            label: 'Home' },
   { to: '/motions',     label: 'Motions' },
   { to: '/assignments', label: 'Team Assignments' },
   { to: '/format',      label: 'Format' },
   { to: '/runofshow',   label: 'Run of Show' },
   { to: '/judging',     label: 'Judging' },
   { to: '/standings',   label: 'Standings' },
-  { to: '/certificate', label: 'Certificate' },
-  { to: '/room-signs',  label: 'Room Signs' },
 ]
+
+// Utility tabs (auth-gated per-role).
+const CERT_ROLES  = ['scholar', 'judge', 'admin']
+const SIGNS_ROLES = ['admin']
 
 export default function PublicShell({ children }) {
   const { status, profile, signInWithGoogle } = useAuth()
   const signedIn = status === 'ready' && profile
+
+  const utilityTabs = []
+  if (signedIn && CERT_ROLES.includes(profile.role)) {
+    utilityTabs.push({ to: '/certificate', label: 'Certificate' })
+  }
+  if (signedIn && SIGNS_ROLES.includes(profile.role)) {
+    utilityTabs.push({ to: '/room-signs', label: 'Room Signs' })
+  }
+  const tabs = [...INFO_TABS, ...utilityTabs]
 
   const portalHref = signedIn
     ? profile.role === 'admin'   ? '/admin'
@@ -33,12 +45,12 @@ export default function PublicShell({ children }) {
           </Link>
 
           <nav className="pub-tabs">
-            {TABS.map(t => (
+            {tabs.map(t => (
               <NavLink
                 key={t.to}
                 to={t.to}
                 end={t.to === '/'}
-                className={({isActive}) => isActive ? 'active' : ''}
+                className={({ isActive }) => isActive ? 'active' : ''}
               >{t.label}</NavLink>
             ))}
           </nav>
