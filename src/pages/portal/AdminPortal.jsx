@@ -310,6 +310,17 @@ function BroadcastTab({ announcements, onMsg }) {
 const ALL_SCHOLAR_CODES = 'ABCDEF'.split('').flatMap(c => Array.from({length:10}, (_,i) => `${c}${i+1}`))
 const ALL_JUDGE_CODES = Array.from({length:30}, (_,i) => `J${i+1}`)
 
+async function sendInviteEmail(u) {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-invite', {
+      body: { email: u.email, role: u.role, code: u.code, name: u.name },
+    })
+    if (error) return { ok: false, error: error.message }
+    if (data?.error) return { ok: false, error: data.error }
+    return { ok: true }
+  } catch (e) { return { ok: false, error: String(e?.message ?? e) } }
+}
+
 function WhitelistTab({ onMsg }) {
   const { profile } = useAuth()
   const myEmail = profile?.email?.toLowerCase()
@@ -352,9 +363,22 @@ function WhitelistTab({ onMsg }) {
     if (!row.email) { onMsg('Email required'); setBusy(false); return }
     if (role !== 'admin' && !row.code) { onMsg('Pick a code'); setBusy(false); return }
     const { error } = await supabase.from('allowed_users').upsert([row], { onConflict: 'email' })
-    if (error) onMsg(error.message)
-    else { onMsg(`Invited ${row.email}`); setEmail(''); setCode(''); setName(''); load() }
+    if (error) { onMsg(error.message); setBusy(false); return }
+
+    // Fire-and-forget email invite; success even if email fails.
+    const emailResult = await sendInviteEmail(row)
+    if (emailResult.ok) onMsg(`Added ${row.email} and sent invite email`)
+    else onMsg(`Added ${row.email}. Email failed: ${emailResult.error}`)
+
+    setEmail(''); setCode(''); setName(''); load()
     setBusy(false)
+  }
+
+  async function resend(u) {
+    onMsg(null)
+    const r = await sendInviteEmail(u)
+    if (r.ok) onMsg(`Invite email resent to ${u.email}`)
+    else onMsg(`Send failed: ${r.error}`)
   }
 
   async function remove(em) {
@@ -507,6 +531,7 @@ function WhitelistTab({ onMsg }) {
               <span className="wl-name">{u.name || '—'}{isSelf && <span className="wl-you">you</span>}</span>
               <span className="wl-email">{u.email}</span>
               <div className="wl-row-actions">
+                <button className="wl-edit-btn" onClick={() => resend(u)} title="Resend invite email">✉</button>
                 <button className="wl-edit-btn" onClick={() => startEdit(u)}>Edit</button>
                 {isSelf
                   ? <span className="wl-locked" title="You can't remove your own admin">🔒</span>
