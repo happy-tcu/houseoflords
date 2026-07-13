@@ -346,10 +346,24 @@ function WhitelistTab({ onMsg }) {
   const [ec, setEC] = useState('')
   const [en, setEN] = useState('')
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    const chan = supabase.channel('roster').on('postgres_changes',
+      { event: '*', schema: 'public', table: 'allowed_users' },
+      () => load()
+    ).subscribe()
+    return () => { supabase.removeChannel(chan) }
+  }, [])
   async function load() {
     const { data } = await supabase.from('allowed_users').select('*').order('role').order('code')
     setUsers(data || [])
+  }
+
+  function statusOf(u) {
+    if (u.first_signed_in_at) return { key: 'accepted', label: 'Accepted', at: u.first_signed_in_at }
+    if (u.email_opened_at)    return { key: 'opened',   label: 'Opened',   at: u.email_opened_at }
+    if (u.invited_at)         return { key: 'invited',  label: 'Invited',  at: u.invited_at }
+    return { key: 'never', label: 'Not sent', at: null }
   }
 
   const takenCodes = new Set(users.map(u => u.code).filter(Boolean))

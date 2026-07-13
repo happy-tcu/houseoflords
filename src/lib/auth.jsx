@@ -29,6 +29,8 @@ export function AuthProvider({ children }) {
       } else {
         setProfile(data)
         setStatus('ready')
+        // Fire-and-forget: record first_signed_in_at + last_seen_at
+        supabase.rpc('touch_self').catch(() => {})
       }
     }
 

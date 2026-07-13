@@ -26,17 +26,17 @@ export default function JudgePortal() {
   const [msg, setMsg] = useState(null)
 
   const { rows: rounds } = useRealtime('rounds', {}, [])
-  const active = useMemo(() => (rounds || []).find(r => r.state !== 'locked' && r.state !== 'done'), [rounds])
+  const { rows: pairings } = useRealtime('pairings', {}, [])
+  const { rows: allMotions } = useRealtime('motions', {}, [])
+  const { rows: ballots } = useRealtime('ballots', {}, [])
 
-  const { rows: pairings } = useRealtime('pairings',
-    active ? { eq: { round_id: active.id } } : null,
-    [active?.id])
-  const mine = useMemo(
-    () => (pairings || []).find(p => p.judge_code === profile.code),
+  const active = useMemo(() => (rounds || []).find(r => r.state !== 'locked' && r.state !== 'done'), [rounds])
+  const myAssignments = useMemo(
+    () => (pairings || []).filter(p => p.judge_code === profile.code),
     [pairings, profile?.code]
   )
+  const mine = active ? myAssignments.find(p => p.round_id === active.id) : null
 
-  const { rows: allMotions } = useRealtime('motions', {}, [])
   const [motion, setMotion] = useState(null)
   useEffect(() => {
     (async () => {
@@ -49,10 +49,9 @@ export default function JudgePortal() {
     })()
   }, [active?.motion_id, mine?.final_motion_id])
 
-  const { rows: existingList } = useRealtime('ballots',
-    active && mine ? { eq: { round_id: active.id, room: mine.room } } : null,
-    [active?.id, mine?.room])
-  const existing = existingList?.[0] || null
+  const existing = active && mine
+    ? (ballots || []).find(b => b.round_id === active.id && b.room === mine.room)
+    : null
 
   function set(field, val) { setBallot(b => ({ ...b, [field]: val })) }
 
@@ -72,123 +71,157 @@ export default function JudgePortal() {
       row.opp_note = ballot.opp_note || null
       const { error } = await supabase.from('ballots').insert(row)
       if (error) throw error
-      setMsg('Ballot submitted.')
+      setMsg('Ballot submitted.'); setBallot(empty())
     } catch (e) { setMsg(`Error: ${e.message}`) }
     setBusy(false)
   }
 
-  if (!active) return (
-    <PortalShell title="Judge Console">
-      <div className="portal-empty">
-        <b>No active round.</b>
-        <span>Wait for admin to open a round. Your assignments will appear here in real time.</span>
-      </div>
-    </PortalShell>
-  )
-
-  if (!mine) return (
-    <PortalShell title="Judge Console">
-      <div className="portal-empty">
-        <b>No assignment for {active.id}.</b>
-        <span>Contact an organizer if this looks wrong.</span>
-      </div>
-    </PortalShell>
-  )
-
+  const roundMotions = active ? (allMotions || []).filter(m => m.round_id === active.id) : []
+  const inStrikePhase = active && mine && active.state === 'prep' && !mine.final_motion_id && roundMotions.length > 0
   const total = (s) => AXES.reduce((sum, a) => sum + (Number(ballot[`${s}_${a.key}`]) || 0), 0)
 
   return (
     <PortalShell title="Judge Console">
       {msg && <div className="portal-msg">{msg}</div>}
 
-      <div className="jp-summary">
-        <div className="jp-summary-block"><div className="k">Round</div><div className="v">{active.id}</div></div>
-        <div className="jp-summary-block"><div className="k">Room</div><div className="v">#{mine.room}</div></div>
-        <div className="jp-summary-block aff"><div className="k">Prop (Aff)</div><div className="v">{mine.aff_code}</div></div>
-        <div className="jp-summary-block opp"><div className="k">Opp</div><div className="v">{mine.opp_code}</div></div>
+      {/* Judge identity + summary */}
+      <div className="dp-code-hero">
+        <div className="dp-code">{profile?.code}</div>
+        <div className="dp-name">{profile?.name || profile?.email} · Judge</div>
       </div>
 
-      {(() => {
-        const roundMotions = (allMotions || []).filter(m => m.round_id === active.id)
-        const inStrikePhase = active.state === 'prep' && !mine.final_motion_id && roundMotions.length > 0
-        if (inStrikePhase) {
-          return <MotionStriking pairing={mine} motions={roundMotions} mySide={null} canReset={true} />
-        }
-        return (
-          <>
-            <JudgeTimer pairing={mine} />
-            {motion ? (
-              <div className="jp-motion">
-                <span className="tag" style={{background:'#8cc63e'}}>Motion</span>
-                <p>{motion.text}</p>
-              </div>
-            ) : (
-              <div className="portal-empty">
-                <b>Motion not selected.</b>
-                <span>Waiting on the strike to finish.</span>
-              </div>
-            )}
-          </>
-        )
-      })()}
+      {/* Assignments across all rounds — always visible */}
+      <h2 className="portal-h2">Your Rooms</h2>
+      <div className="dp-schedule">
+        {(rounds || []).filter(r => ['R1','R2','R3','R4','R5'].includes(r.id)).map(r => {
+          const p = myAssignments.find(x => x.round_id === r.id)
+          if (!p) return null
+          const b = (ballots || []).find(x => x.round_id === r.id && x.room === p.room)
+          const isActive = active?.id === r.id
+          return (
+            <div key={r.id} className={`dp-row st-${r.state} ${isActive ? 'active' : ''}`}>
+              <span className="dp-round">{r.id}</span>
+              <span className="dp-room">Room #{p.room}</span>
+              <span className="dp-side aff">{p.aff_code}</span>
+              <span className="dp-vs">vs</span>
+              <span className="dp-opp">{p.opp_code}</span>
+              {b ? (
+                <span className="dp-result won">Ballot ✓</span>
+              ) : (
+                <span className={`state-pill st-${r.state}`}>{r.state}</span>
+              )}
+            </div>
+          )
+        })}
+      </div>
 
-      {existing ? (
-        <div className="portal-empty ok">
-          <b>Ballot submitted for Room #{mine.room}.</b>
-          <span>Winner: <b>{existing.winner === 'aff' ? mine.aff_code : mine.opp_code}</b>.
-                Aff {['argument','rebuttal','delivery','persuasion'].reduce((s,k) => s+(existing[`aff_${k}`]||0),0)}/20 ·
-                Opp {['argument','rebuttal','delivery','persuasion'].reduce((s,k) => s+(existing[`opp_${k}`]||0),0)}/20.</span>
+      {/* Live console */}
+      {!active && (
+        <div className="portal-empty">
+          <b>No round active yet.</b>
+          <span>When admin opens a round, this section becomes your live console: motion striking → timer → ballot.</span>
         </div>
-      ) : (
-        <form className="ballot-form" onSubmit={onSubmit}>
-          <div className="ballot-cols">
-            {['aff', 'opp'].map(side => (
-              <div key={side} className={`ballot-col2 ${side}`}>
-                <div className="col-hd">
-                  <span className={`side-tag ${side}`}>{side === 'aff' ? 'PROP' : 'OPP'}</span>
-                  <span className="col-code">{side === 'aff' ? mine.aff_code : mine.opp_code}</span>
+      )}
+
+      {active && !mine && (
+        <div className="portal-empty">
+          <b>You have no assignment for {active.id}.</b>
+          <span>Check with an organizer if this looks wrong.</span>
+        </div>
+      )}
+
+      {active && mine && (
+        <>
+          <h2 className="portal-h2">Live · {active.id} · Room #{mine.room}</h2>
+
+          <div className="jp-summary">
+            <div className="jp-summary-block"><div className="k">Round</div><div className="v">{active.id}</div></div>
+            <div className="jp-summary-block"><div className="k">Room</div><div className="v">#{mine.room}</div></div>
+            <div className="jp-summary-block aff"><div className="k">Prop (Aff)</div><div className="v">{mine.aff_code}</div></div>
+            <div className="jp-summary-block opp"><div className="k">Opp</div><div className="v">{mine.opp_code}</div></div>
+          </div>
+
+          {inStrikePhase ? (
+            <MotionStriking pairing={mine} motions={roundMotions} mySide={null} canReset={true} />
+          ) : (
+            <>
+              <JudgeTimer pairing={mine} />
+
+              {motion ? (
+                <div className="jp-motion">
+                  <span className="tag" style={{background:'#8cc63e'}}>Motion</span>
+                  <p>{motion.text}</p>
                 </div>
-                {AXES.map(a => (
-                  <label key={a.key} className="score-input-row">
-                    <span className="sr-name">{a.name}</span>
-                    <input type="number" min="0" max="5" required
-                           value={ballot[`${side}_${a.key}`]}
-                           onChange={e => set(`${side}_${a.key}`, e.target.value)} />
-                    <span className="sr-max">/ 5</span>
+              ) : (
+                <div className="portal-empty">
+                  <b>Motion not selected yet.</b>
+                  <span>Waiting on strike to complete.</span>
+                </div>
+              )}
+            </>
+          )}
+
+          {existing ? (
+            <div className="portal-empty ok" style={{marginTop: 16}}>
+              <b>Ballot submitted for Room #{mine.room}.</b>
+              <span>Winner: <b>{existing.winner === 'aff' ? mine.aff_code : mine.opp_code}</b>.
+                    Aff {['argument','rebuttal','delivery','persuasion'].reduce((s,k) => s+(existing[`aff_${k}`]||0),0)}/20 ·
+                    Opp {['argument','rebuttal','delivery','persuasion'].reduce((s,k) => s+(existing[`opp_${k}`]||0),0)}/20.</span>
+            </div>
+          ) : (
+            (active.state === 'debate' || active.state === 'voting') && (
+              <form className="ballot-form" onSubmit={onSubmit} style={{marginTop: 16}}>
+                <div className="ballot-cols">
+                  {['aff', 'opp'].map(side => (
+                    <div key={side} className={`ballot-col2 ${side}`}>
+                      <div className="col-hd">
+                        <span className={`side-tag ${side}`}>{side === 'aff' ? 'PROP' : 'OPP'}</span>
+                        <span className="col-code">{side === 'aff' ? mine.aff_code : mine.opp_code}</span>
+                      </div>
+                      {AXES.map(a => (
+                        <label key={a.key} className="score-input-row">
+                          <span className="sr-name">{a.name}</span>
+                          <input type="number" min="0" max="5" required
+                                 value={ballot[`${side}_${a.key}`]}
+                                 onChange={e => set(`${side}_${a.key}`, e.target.value)} />
+                          <span className="sr-max">/ 5</span>
+                        </label>
+                      ))}
+                      <div className="col-total">Total <b>{total(side)}<small> / 20</small></b></div>
+                      <label className="note-row">
+                        <span>Feedback (optional)</span>
+                        <textarea rows="3"
+                                  value={ballot[`${side}_note`]}
+                                  onChange={e => set(`${side}_note`, e.target.value)}
+                                  placeholder={`One line the ${side === 'aff' ? 'Prop' : 'Opp'} speaker should hear`} />
+                      </label>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="winner-row">
+                  <span>Winner</span>
+                  <label className={`w-choice ${ballot.winner === 'aff' ? 'sel' : ''}`}>
+                    <input type="radio" name="winner" value="aff" required
+                           checked={ballot.winner === 'aff'}
+                           onChange={e => set('winner', e.target.value)} />
+                    PROP · {mine.aff_code}
                   </label>
-                ))}
-                <div className="col-total">Total <b>{total(side)}<small> / 20</small></b></div>
-                <label className="note-row">
-                  <span>Feedback (optional)</span>
-                  <textarea rows="3"
-                            value={ballot[`${side}_note`]}
-                            onChange={e => set(`${side}_note`, e.target.value)}
-                            placeholder={`One line the ${side === 'aff' ? 'Prop' : 'Opp'} speaker should hear`} />
-                </label>
-              </div>
-            ))}
-          </div>
+                  <label className={`w-choice ${ballot.winner === 'opp' ? 'sel' : ''}`}>
+                    <input type="radio" name="winner" value="opp"
+                           checked={ballot.winner === 'opp'}
+                           onChange={e => set('winner', e.target.value)} />
+                    OPP · {mine.opp_code}
+                  </label>
+                </div>
 
-          <div className="winner-row">
-            <span>Winner</span>
-            <label className={`w-choice ${ballot.winner === 'aff' ? 'sel' : ''}`}>
-              <input type="radio" name="winner" value="aff" required
-                     checked={ballot.winner === 'aff'}
-                     onChange={e => set('winner', e.target.value)} />
-              PROP · {mine.aff_code}
-            </label>
-            <label className={`w-choice ${ballot.winner === 'opp' ? 'sel' : ''}`}>
-              <input type="radio" name="winner" value="opp"
-                     checked={ballot.winner === 'opp'}
-                     onChange={e => set('winner', e.target.value)} />
-              OPP · {mine.opp_code}
-            </label>
-          </div>
-
-          <button type="submit" className="btn-primary" disabled={busy}>
-            {busy ? 'Submitting…' : 'Submit ballot'}
-          </button>
-        </form>
+                <button type="submit" className="btn-primary" disabled={busy}>
+                  {busy ? 'Submitting…' : 'Submit ballot'}
+                </button>
+              </form>
+            )
+          )}
+        </>
       )}
     </PortalShell>
   )

@@ -74,6 +74,8 @@ serve(async (req) => {
       const errBody = await resp.text()
       return json({ error: `resend: ${resp.status} ${errBody}` }, 502)
     }
+    // Record invited_at
+    await supabase.from("allowed_users").update({ invited_at: new Date().toISOString() }).eq("email", email)
     return json({ ok: true })
   } catch (e: any) {
     return json({ error: String(e?.message ?? e) }, 500)
