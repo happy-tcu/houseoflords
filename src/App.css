@@ -1555,6 +1555,23 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
   .dp-row { grid-template-columns: 60px 80px 60px 30px 1fr; gap: 8px; }
 }
 
+/* Tournament complete banner */
+.tournament-done {
+  background: linear-gradient(135deg, rgba(140,198,62,0.15), rgba(29,175,236,0.10));
+  border: 2px solid var(--brand-green);
+  border-radius: 4px; padding: 20px 24px; margin-bottom: 20px;
+  display: flex; align-items: center; gap: 20px;
+}
+.td-emoji { font-size: 44px; }
+.tournament-done b {
+  display: block; font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 20px; color: var(--brand-dark);
+}
+.tournament-done span {
+  display: block; margin-top: 4px; font-size: 13px; color: var(--muted);
+  font-family: 'Montserrat', sans-serif; font-weight: 600;
+}
+
 .ballot-locked .score-input-row input:disabled,
 .ballot-locked .w-choice.disabled {
   opacity: 0.4; cursor: not-allowed;

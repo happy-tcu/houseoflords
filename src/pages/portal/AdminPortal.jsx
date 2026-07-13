@@ -27,9 +27,20 @@ export default function AdminPortal() {
   const expectedBallots = 3 * 30
   const active = (rounds || []).find(r => r.state !== 'locked' && r.state !== 'done')
 
+  const allDone = rounds && rounds.length === 5 && rounds.every(r => r.state === 'done')
+
   return (
     <PortalShell title="Admin">
       {msg && <div className="portal-msg">{msg}</div>}
+      {allDone && (
+        <div className="tournament-done">
+          <div className="td-emoji">🏆</div>
+          <div>
+            <b>Tournament complete.</b>
+            <span>All five rounds sealed. Check Standings for the final winner.</span>
+          </div>
+        </div>
+      )}
 
       <div className="portal-stat-row">
         <Stat k="Ballots in" v={<>{totalBallots}<small> / {expectedBallots}</small></>} />
@@ -42,7 +53,7 @@ export default function AdminPortal() {
         {[
           ['rounds',   'Round Control'],
           ['live',     'Live Rooms'],
-          ['motions',  'Motion Picker'],
+          ['motions',  'Round Motions'],
           ['ballots',  'Ballot Tracker'],
           ['standings','Standings'],
           ['broadcast','Announcements'],
