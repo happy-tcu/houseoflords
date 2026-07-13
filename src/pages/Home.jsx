@@ -57,18 +57,13 @@ export default function Home() {
               <li><b>Admin</b> <span>Release rounds, watch standings unfold.</span></li>
             </ul>
 
-            <div className="landing-cta">
-              {signedIn ? (
+            {signedIn && (
+              <div className="landing-cta">
                 <button className="btn-primary" onClick={() => nav(portalHref)}>
                   <GoogleIcon /> Open {profile.role} portal
                 </button>
-              ) : (
-                <button className="btn-primary" onClick={onSignIn} disabled={busy}>
-                  <GoogleIcon /> {busy ? 'Redirecting…' : 'Sign in with Google'}
-                </button>
-              )}
-              <Link to="/motions" className="btn-secondary">Browse motions</Link>
-            </div>
+              </div>
+            )}
             {err && <div className="landing-err">{err}</div>}
           </div>
 
