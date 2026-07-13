@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { SEGMENT_MAP, fmt, computeRemaining, warningLevel } from '../lib/segments'
 import { useTick } from '../lib/realtime'
-import { beep } from '../lib/sound'
+import { beep, alarm } from '../lib/sound'
 
 export default function DebaterTimer({ pairing, mySide }) {
   useTick(500)
@@ -13,9 +13,9 @@ export default function DebaterTimer({ pairing, mySide }) {
     const prev = lastRef.current
     const now = remaining
     if (cur.seconds > 0) {
-      if (prev > 30 && now <= 30 && now > 0) beep({freq: 660, dur: 180})
-      if (prev > 15 && now <= 15 && now > 0) beep({freq: 880, dur: 220})
-      if (prev > 0 && now === 0)             beep({freq: 1000, dur: 400, repeat: 3})
+      if (prev > 30 && now <= 30 && now > 0) beep({freq: 660, dur: 220, gain: 0.45})
+      if (prev > 15 && now <= 15 && now > 0) beep({freq: 900, dur: 280, gain: 0.55, repeat: 2, gap: 90})
+      if (prev > 0 && now === 0)             alarm({cycles: 14, hi: 1400, lo: 900, dur: 160, gap: 40})
     }
     lastRef.current = now
   }, [remaining, cur.seconds])
