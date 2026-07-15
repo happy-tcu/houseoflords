@@ -4,14 +4,27 @@ import { ROUNDS, TAG_COLORS } from '../../data/motions'
 export default function MotionsPage() {
   return (
     <PublicShell>
-      <section className="hero hero-center">
+      <section className="hero hero-editorial">
+        <div className="home-bg" aria-hidden="true">
+          <div className="home-grid" />
+          <img className="home-watermark" src="/assets/isomo.png" alt="" />
+        </div>
         <div className="hero-inner">
-          <span className="kicker">House of Lords</span>
-          <h1>Dissecting Vision 2050</h1>
-          <div className="subtitle">IPDA-Style Debate Motions &middot; 5 Rounds &middot; 25 Motions</div>
+          <div className="meta-bar">
+            <span>House of Lords</span>
+            <span className="dot" />
+            <span>Motions</span>
+            <span className="dot" />
+            <span>5 rounds &middot; 25</span>
+          </div>
+          <span className="kicker">Dissecting Vision 2050</span>
+          <h1>Twenty-five ways to interrogate 2050.</h1>
+          <div className="subtitle">
+            Policy, value, and metaphor motions. One per debate. Struck down to one.
+          </div>
           <p className="lede">
-            Each round offers five motions &mdash; a mix of policy, value, and metaphor frames &mdash;
-            so teams can pick the entry point that fits their voice. Motions center the question:
+            Each round hands your room five motions. Opp cancels first, you alternate,
+            the last one standing becomes the debate motion. Every motion centers the same question:
             <em> what can we do now, with what we have, to shape Rwanda&rsquo;s Vision 2050?</em>
           </p>
         </div>

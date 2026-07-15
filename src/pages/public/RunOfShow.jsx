@@ -14,15 +14,28 @@ const SLOTS = [
 export default function RunOfShowPage() {
   return (
     <PublicShell>
-      <section className="hero hero-center">
+      <section className="hero hero-editorial">
+        <div className="home-bg" aria-hidden="true">
+          <div className="home-grid" />
+          <img className="home-watermark" src="/assets/isomo.png" alt="" />
+        </div>
         <div className="hero-inner">
+          <div className="meta-bar">
+            <span>Saturday</span>
+            <span className="dot" />
+            <span>18 July 2026</span>
+            <span className="dot" />
+            <span>Kigali</span>
+          </div>
           <span className="kicker">Run of Show</span>
-          <h1>18 July 2026 &middot; 10:30 &rarr; 7:00</h1>
-          <div className="subtitle">5 rounds &middot; 60 speakers &middot; 30 judges &middot; one big finish</div>
+          <h1>Ten thirty to seven.</h1>
+          <div className="subtitle">
+            Five rounds. Sixty speakers. Thirty judges. One long day. One big finish.
+          </div>
           <p className="lede">
-            Full-day timeline. Prelims (R1&ndash;R3) fill the morning through early afternoon,
-            lunch doubles as the Vision 2050 Wall session, semi and final take the afternoon,
-            awards close the day before dinner.
+            Prelims (R1&ndash;R3) fill the morning through early afternoon; lunch doubles as the
+            Vision&nbsp;2050 Wall session; semi and final take the afternoon; awards close the day
+            before dinner.
           </p>
         </div>
       </section>

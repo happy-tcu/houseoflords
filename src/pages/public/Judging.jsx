@@ -22,11 +22,24 @@ const SEGS = [
 export default function JudgingPage() {
   return (
     <PublicShell>
-      <section className="hero hero-center">
+      <section className="hero hero-editorial">
+        <div className="home-bg" aria-hidden="true">
+          <div className="home-grid" />
+          <img className="home-watermark" src="/assets/isomo.png" alt="" />
+        </div>
         <div className="hero-inner">
+          <div className="meta-bar">
+            <span>4 axes</span>
+            <span className="dot" />
+            <span>/20 total</span>
+            <span className="dot" />
+            <span>binary winner</span>
+          </div>
           <span className="kicker">Judging</span>
-          <h1>Rubric, Ballot &amp; Judge Card</h1>
-          <div className="subtitle">4 axes &middot; /5 each &middot; /20 total &middot; binary winner</div>
+          <h1>Four axes. One winner.</h1>
+          <div className="subtitle">
+            Rubric, ballot, judge card. Everything a judge needs, in one console.
+          </div>
           <p className="lede">
             Judges also keep time &mdash; one person per room, staying across all three prelim rounds.
             Score each speaker on 4 axes, tick a winner, submit the ballot before the next round is called.

@@ -24,15 +24,28 @@ const RULES = [
 export default function FormatPage() {
   return (
     <PublicShell>
-      <section className="hero hero-center">
+      <section className="hero hero-editorial">
+        <div className="home-bg" aria-hidden="true">
+          <div className="home-grid" />
+          <img className="home-watermark" src="/assets/isomo.png" alt="" />
+        </div>
         <div className="hero-inner">
+          <div className="meta-bar">
+            <span>IPDA Impromptu</span>
+            <span className="dot" />
+            <span>1 v 1</span>
+            <span className="dot" />
+            <span>59 min / round</span>
+          </div>
           <span className="kicker">Format &amp; Timing</span>
-          <h1>IPDA Impromptu &middot; Hard Time Rule</h1>
-          <div className="subtitle">1v1 &middot; 59-min rounds &middot; 30-min prep &middot; no speaker grace</div>
+          <h1>Every second is measured.</h1>
+          <div className="subtitle">
+            30 minutes of prep. Eight timed segments. Zero grace when the clock hits zero.
+          </div>
           <p className="lede">
-            All speeches are timed to the second. When the clock hits the cap the speaker is
-            <strong> cut off mid-word</strong> — no grace period, no verbal warning at the end,
-            no exceptions. Timekeepers hold up signs at 30s and 15s remaining.
+            When the clock hits the cap, the speaker is <strong>cut off mid-word</strong> — no grace,
+            no verbal warning, no exceptions. Timekeepers hold up silent signs at 30&nbsp;seconds and 15&nbsp;seconds.
+            An alarm sounds at zero.
           </p>
         </div>
       </section>

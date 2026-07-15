@@ -15,13 +15,26 @@ export default function AssignmentsPage() {
 
   return (
     <PublicShell>
-      <section className="hero hero-center">
+      <section className="hero hero-editorial">
+        <div className="home-bg" aria-hidden="true">
+          <div className="home-grid" />
+          <img className="home-watermark" src="/assets/isomo.png" alt="" />
+        </div>
         <div className="hero-inner">
-          <span className="kicker">Prelim Team Assignments</span>
-          <h1>Rounds 1&ndash;3 &middot; 90 Debates</h1>
-          <div className="subtitle">Every scholar debates three times &middot; always cross-class &middot; no repeat opponents</div>
+          <div className="meta-bar">
+            <span>Prelims</span>
+            <span className="dot" />
+            <span>R1 &middot; R2 &middot; R3</span>
+            <span className="dot" />
+            <span>90 debates</span>
+          </div>
+          <span className="kicker">Team Assignments</span>
+          <h1>Ninety debates, no repeats.</h1>
+          <div className="subtitle">
+            Every scholar debates three times. Always cross-class. Never the same opponent twice.
+          </div>
           <p className="lede">
-            Judges are fixed to a room (J1&nbsp;&rarr;&nbsp;Room #1). Rooms reorder each round so
+            Judges are fixed to a room (J1&nbsp;&rarr;&nbsp;Room&nbsp;#1). Rooms reorder each round so
             each judge sees six unique speakers. Sides swap R1&nbsp;&rarr;&nbsp;R2. R3 is randomized.
           </p>
         </div>
