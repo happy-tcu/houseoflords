@@ -856,9 +856,9 @@
     ]
     __asyvMap = L.map('asyv-map', { scrollWheelZoom: false, zoomControl: true, attributionControl: true })
                  .setView([-2.02870, 30.37730], 17)
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: 'Tiles © Esri, Maxar, Earthstar Geographics'
+      attribution: '© OpenStreetMap contributors'
     }).addTo(__asyvMap)
     for (const v of VENUES) {
       const icon = L.divIcon({

@@ -2635,3 +2635,92 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
 }
 .reg-item-actions .btn-danger:hover:not(:disabled) { background: #b23; color: #fff; }
 .reg-item-actions .btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ============ VENUE PAGE ============ */
+.venue-map-wrap {
+  display: grid; grid-template-columns: 1.35fr 1fr; gap: 28px;
+  align-items: stretch;
+}
+#venue-map {
+  height: 520px;
+  border: 1.5px solid var(--brand-dark, #2b2c2d);
+  background: #eee;
+  box-shadow: 6px 6px 0 var(--brand-dark, #2b2c2d);
+}
+.venue-map-legend {
+  display: flex; flex-direction: column; gap: 12px;
+  max-height: 520px; overflow-y: auto;
+}
+.venue-row {
+  display: grid; grid-template-columns: 44px 1fr auto; gap: 14px;
+  align-items: center; padding: 14px 16px;
+  border: 1.5px solid var(--brand-dark, #2b2c2d);
+  background: #fff;
+}
+.venue-num {
+  width: 36px; height: 36px; border-radius: 999px;
+  background: var(--brand-dark, #2b2c2d); color: var(--cream, #fbf7ee);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 15px;
+}
+.venue-body { display: flex; flex-direction: column; gap: 3px; }
+.venue-name {
+  font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 15px;
+  color: var(--brand-dark, #2b2c2d);
+}
+.venue-role {
+  font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 10px;
+  letter-spacing: 1.8px; text-transform: uppercase; color: rgba(43,44,45,0.6);
+}
+.venue-tag {
+  font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 9px;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 5px 10px; border: 1.5px solid;
+}
+.venue-tag.prelim  { color: #1dafec; border-color: #1dafec; }
+.venue-tag.lunch   { color: #efb34a; border-color: #efb34a; }
+.venue-tag.quarter { color: #7ab332; border-color: #7ab332; }
+.venue-tag.final   { color: #7c5cff; border-color: #7c5cff; }
+/* Leaflet custom pin */
+.venue-map-pin {
+  width: 36px; height: 36px; border-radius: 999px;
+  background: var(--brand-dark, #2b2c2d); color: var(--cream, #fbf7ee);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 15px;
+  border: 2.5px solid #fff; box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+}
+.leaflet-container { font-family: 'Open Sans', sans-serif !important; }
+@media (max-width: 900px) {
+  .venue-map-wrap { grid-template-columns: 1fr; }
+  #venue-map { height: 380px; }
+  .venue-map-legend { max-height: none; }
+}
+
+.venue-getting-there {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+}
+.vgt-card {
+  padding: 24px;
+  background: var(--cream, #fbf7ee);
+  border: 1.5px solid var(--brand-dark, #2b2c2d);
+}
+.vgt-kicker {
+  display: block;
+  font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 10px;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--brand-green-2, #7ab332);
+  margin-bottom: 8px;
+}
+.vgt-value {
+  font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+  font-weight: 700; font-size: 40px; color: var(--brand-dark, #2b2c2d);
+  line-height: 1;
+  margin-bottom: 12px;
+}
+.vgt-note {
+  font-family: 'Open Sans', sans-serif; font-size: 14px; line-height: 1.5;
+  color: var(--brand-dark, #2b2c2d);
+}
+@media (max-width: 800px) {
+  .venue-getting-there { grid-template-columns: 1fr; }
+}

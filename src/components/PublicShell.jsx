@@ -10,6 +10,7 @@ const INFO_TABS = [
   { to: '/format',      label: 'Format' },
   { to: '/runofshow',   label: 'Run of Show' },
   { to: '/judging',     label: 'Judging' },
+  { to: '/venue',       label: 'Venue' },
 ]
 
 // Utility tabs (auth-gated per-role).
