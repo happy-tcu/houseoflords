@@ -687,13 +687,13 @@ function RegistrationsTab({ onMsg }) {
   }
 
   function exportCsv() {
-    const rows = [['Class', 'School', 'Cohort', 'Captain', 'Email', 'Phone', 'Status', 'Speakers', 'Submitted', 'Notes']]
+    const rows = [['Class', 'Team', 'School', 'Cohort', 'Captain', 'Email', 'Phone', 'Status', 'Speakers', 'Submitted', 'Notes']]
     for (const r of regs || []) {
       const list = (speakersByReg[r.id] || [])
-        .map(s => `${s.speaker_name}${s.speaker_email ? ` <${s.speaker_email}>` : ''}${s.speaker_year ? ` [${s.speaker_year}]` : ''}`)
+        .map(s => `${s.speaker_code || '?'} ${s.speaker_name}${s.speaker_email ? ` <${s.speaker_email}>` : ''}${s.speaker_year ? ` [${s.speaker_year}]` : ''}`)
         .join(' | ')
       rows.push([
-        r.class_name, r.school_name || '', r.cohort || '',
+        r.class_letter || '', r.team_name || r.class_name, r.school_name || '', r.cohort || '',
         r.captain_name, r.captain_email, r.captain_phone || '',
         r.status, list, r.submitted_at, r.notes || ''
       ])
@@ -737,9 +737,11 @@ function RegistrationsTab({ onMsg }) {
             return (
               <div key={r.id} className={`reg-item status-${r.status}`}>
                 <div className="reg-item-head" onClick={() => setExpanded(isOpen ? null : r.id)}>
+                  {r.class_letter && <div className="reg-item-badge">{r.class_letter}</div>}
                   <div className="reg-item-main">
-                    <div className="reg-item-class">{r.class_name}</div>
+                    <div className="reg-item-class">{r.team_name || r.class_name}</div>
                     <div className="reg-item-meta">
+                      {r.class_letter && <span className="tag">Class {r.class_letter}</span>}
                       {r.school_name && <span>{r.school_name}</span>}
                       {r.cohort && <span className="tag">{r.cohort.toUpperCase()}</span>}
                       <span>{list.length} speaker{list.length === 1 ? '' : 's'}</span>
@@ -759,11 +761,11 @@ function RegistrationsTab({ onMsg }) {
                       {r.captain_phone && <div><a href={`tel:${r.captain_phone}`}>{r.captain_phone}</a></div>}
                     </div>
                     <table className="fmt-table reg-speakers-table">
-                      <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Year</th></tr></thead>
+                      <thead><tr><th>Code</th><th>Name</th><th>Email</th><th>Phone</th><th>Year</th></tr></thead>
                       <tbody>
                         {list.map((s, i) => (
                           <tr key={s.id}>
-                            <td>{i + 1}</td>
+                            <td><b>{s.speaker_code || i + 1}</b></td>
                             <td>{s.speaker_name}</td>
                             <td>{s.speaker_email || '—'}</td>
                             <td>{s.speaker_phone || '—'}</td>

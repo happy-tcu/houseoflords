@@ -4,7 +4,9 @@ import { supabase } from '../../lib/supabase'
 
 const DEADLINE = new Date('2026-07-16T12:00:00+02:00') // Rwanda time (CAT)
 
-const EMPTY_SPEAKER = () => ({ name: '', email: '', phone: '', year: '' })
+const EMPTY_SPEAKER = () => ({ code: '', name: '', email: '', phone: '', year: '' })
+const CLASS_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
+const SLOTS = Array.from({ length: 10 }, (_, i) => i + 1)
 
 function useCountdown(target) {
   const [now, setNow] = useState(() => Date.now())
@@ -28,7 +30,8 @@ export default function RegisterPage() {
   const [error, setError] = useState(null)
   const [regId, setRegId] = useState(null)
 
-  const [className, setClassName]     = useState('')
+  const [classLetter, setClassLetter] = useState('')
+  const [teamName, setTeamName]       = useState('')
   const [schoolName, setSchoolName]   = useState('')
   const [captainName, setCaptainName] = useState('')
   const [captainEmail, setCaptainEmail] = useState('')
@@ -37,22 +40,41 @@ export default function RegisterPage() {
   const [notes, setNotes] = useState('')
   const [speakers, setSpeakers] = useState([EMPTY_SPEAKER(), EMPTY_SPEAKER()])
 
+  // Speaker codes are constrained by the chosen class letter.
+  const usedCodes = useMemo(() => new Set(speakers.map(s => s.code).filter(Boolean)), [speakers])
+  const availableCodes = useMemo(
+    () => classLetter ? SLOTS.map(n => `${classLetter}${n}`) : [],
+    [classLetter]
+  )
+
+  // If class letter changes, clear speaker codes that no longer match.
+  useEffect(() => {
+    setSpeakers(prev => prev.map(s =>
+      s.code && classLetter && s.code.charAt(0) !== classLetter ? { ...s, code: '' } : s
+    ))
+  }, [classLetter])
+
   const filledSpeakers = useMemo(
     () => speakers.filter(s => s.name.trim().length > 0),
     [speakers]
   )
 
-  const canSubmit = className.trim() && captainName.trim()
+  const canSubmit = classLetter && teamName.trim() && captainName.trim()
     && /\S+@\S+\.\S+/.test(captainEmail)
     && filledSpeakers.length >= 2
+    && filledSpeakers.every(s => s.code)
     && !closed
 
   function updateSpeaker(i, field, val) {
     setSpeakers(s => s.map((x, ix) => ix === i ? { ...x, [field]: val } : x))
   }
   function addSpeaker() {
-    if (speakers.length >= 12) return
-    setSpeakers(s => [...s, EMPTY_SPEAKER()])
+    if (speakers.length >= 10) return
+    // Auto-suggest first free code for this class.
+    const nextCode = classLetter
+      ? (SLOTS.map(n => `${classLetter}${n}`).find(c => !usedCodes.has(c)) || '')
+      : ''
+    setSpeakers(s => [...s, { ...EMPTY_SPEAKER(), code: nextCode }])
   }
   function removeSpeaker(i) {
     if (speakers.length <= 2) return
@@ -64,7 +86,8 @@ export default function RegisterPage() {
     if (!canSubmit || step === 'saving') return
     setStep('saving'); setError(null)
     const payload = {
-      p_class_name:    className.trim(),
+      p_class_letter:  classLetter,
+      p_team_name:     teamName.trim(),
       p_school_name:   schoolName.trim() || null,
       p_captain_name:  captainName.trim(),
       p_captain_email: captainEmail.trim().toLowerCase(),
@@ -72,6 +95,7 @@ export default function RegisterPage() {
       p_cohort:        cohort || null,
       p_notes:         notes.trim() || null,
       p_speakers:      filledSpeakers.map(s => ({
+        code:  s.code,
         name:  s.name.trim(),
         email: s.email.trim().toLowerCase() || null,
         phone: s.phone.trim() || null,
@@ -117,7 +141,7 @@ export default function RegisterPage() {
       </section>
 
       {step === 'done' ? (
-        <SuccessCard regId={regId} className={className} count={filledSpeakers.length} />
+        <SuccessCard regId={regId} classLetter={classLetter} teamName={teamName} count={filledSpeakers.length} />
       ) : (
         <>
           <DeadlineBanner closed={closed} d={d} h={h} m={m} />
@@ -128,16 +152,18 @@ export default function RegisterPage() {
                   <span className="reg-sec-num">01</span>
                   <span className="reg-sec-title">The class</span>
                 </legend>
-                <div className="reg-grid two">
-                  <label className="reg-field span-2">
-                    <span className="reg-label">Class or team name *</span>
-                    <input type="text" required value={className} onChange={e => setClassName(e.target.value)}
-                      placeholder="e.g. Y2 Group A · Class of 2027" />
+                <div className="reg-grid four">
+                  <label className="reg-field small">
+                    <span className="reg-label">Class *</span>
+                    <select required value={classLetter} onChange={e => setClassLetter(e.target.value)}>
+                      <option value="">— Pick —</option>
+                      {CLASS_LETTERS.map(l => <option key={l} value={l}>Class {l}</option>)}
+                    </select>
                   </label>
-                  <label className="reg-field">
-                    <span className="reg-label">School / institution</span>
-                    <input type="text" value={schoolName} onChange={e => setSchoolName(e.target.value)}
-                      placeholder="Optional if not applicable" />
+                  <label className="reg-field span-2">
+                    <span className="reg-label">Team name *</span>
+                    <input type="text" required value={teamName} onChange={e => setTeamName(e.target.value)}
+                      placeholder="e.g. The Vision Cabinet" />
                   </label>
                   <label className="reg-field">
                     <span className="reg-label">Cohort</span>
@@ -147,6 +173,11 @@ export default function RegisterPage() {
                       <option value="y2">Year Twos (Y2)</option>
                       <option value="mixed">Mixed</option>
                     </select>
+                  </label>
+                  <label className="reg-field span-4">
+                    <span className="reg-label">School / institution</span>
+                    <input type="text" value={schoolName} onChange={e => setSchoolName(e.target.value)}
+                      placeholder="Optional if not applicable" />
                   </label>
                 </div>
               </fieldset>
@@ -179,12 +210,32 @@ export default function RegisterPage() {
                 <legend>
                   <span className="reg-sec-num">03</span>
                   <span className="reg-sec-title">The speakers</span>
-                  <span className="reg-sec-hint">Minimum 2 · maximum 12</span>
+                  <span className="reg-sec-hint">
+                    {classLetter ? `Codes ${classLetter}1–${classLetter}10` : 'Pick a class first'} · min 2 · max 10
+                  </span>
                 </legend>
                 <div className="reg-speakers">
                   {speakers.map((s, i) => (
                     <div key={i} className="reg-speaker">
-                      <div className="reg-speaker-num">{String(i + 1).padStart(2, '0')}</div>
+                      <div className="reg-speaker-code">
+                        <label className="reg-field">
+                          <span className="reg-label">Code{i < 2 ? ' *' : ''}</span>
+                          <select
+                            required={i < 2}
+                            value={s.code}
+                            onChange={e => updateSpeaker(i, 'code', e.target.value)}
+                            disabled={!classLetter}
+                          >
+                            <option value="">—</option>
+                            {availableCodes.map(c => (
+                              <option key={c} value={c}
+                                disabled={usedCodes.has(c) && c !== s.code}>
+                                {c}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
                       <div className="reg-speaker-fields">
                         <label className="reg-field">
                           <span className="reg-label">Full name{i < 2 ? ' *' : ''}</span>
@@ -221,7 +272,7 @@ export default function RegisterPage() {
                     </div>
                   ))}
                   <button type="button" className="reg-add" onClick={addSpeaker}
-                    disabled={speakers.length >= 12}>
+                    disabled={speakers.length >= 10 || !classLetter}>
                     + Add another speaker
                   </button>
                 </div>
@@ -275,7 +326,7 @@ function DeadlineBanner({ closed, d, h, m }) {
   )
 }
 
-function SuccessCard({ regId, className, count }) {
+function SuccessCard({ regId, classLetter, teamName, count }) {
   return (
     <section className="block">
       <div className="container">
@@ -284,8 +335,9 @@ function SuccessCard({ regId, className, count }) {
           <span className="kicker">Registered</span>
           <h2>Class received.</h2>
           <div className="reg-success-body">
-            <div className="reg-success-row"><span className="k">Class</span><b>{className}</b></div>
-            <div className="reg-success-row"><span className="k">Speakers</span><b>{count}</b></div>
+            <div className="reg-success-row"><span className="k">Class</span><b>Class {classLetter}</b></div>
+            <div className="reg-success-row"><span className="k">Team</span><b>{teamName}</b></div>
+            <div className="reg-success-row"><span className="k">Speakers</span><b>{count} ({classLetter}1–{classLetter}{count})</b></div>
             <div className="reg-success-row"><span className="k">Reference</span><code>{regId?.slice(0, 8)}</code></div>
           </div>
           <p className="reg-success-note">
