@@ -848,27 +848,34 @@
     if (typeof L === 'undefined' || !document.getElementById('asyv-map')) return
     if (__asyvMap) return
     const VENUES = [
-      { n: 1, name: 'Liquidnet HS · East Wing', role: 'Check-in · Prelims R1–R3',   ll: [-2.02780, 30.37680] },
-      { n: 2, name: 'Dining Hall',              role: 'Lunch · balcony prelims',     ll: [-2.02815, 30.37700] },
-      { n: 3, name: 'Green House',              role: 'Quarterfinal room A',         ll: [-2.02870, 30.37760] },
-      { n: 4, name: 'Orange House',             role: 'Quarterfinal room B',         ll: [-2.02895, 30.37780] },
-      { n: 5, name: 'Amphitheatre',             role: 'Final · awards · closing',    ll: [-2.02955, 30.37750] },
+      { n: 1, name: 'Liquidnet HS · East Wing', role: 'Check-in · Prelims R1–R3',   ll: [-2.0285309800667926, 30.379097336650453] },
+      { n: 2, name: 'Dining Hall',              role: 'Lunch · balcony prelims',     ll: [-2.030515741198399,  30.38052045713727] },
+      { n: 3, name: 'Green House',              role: 'Quarterfinal room A',         ll: [-2.0346583794589463, 30.383267024371563] },
+      { n: 4, name: 'Orange House',             role: 'Quarterfinal room B',         ll: [-2.0344059952362854, 30.384603319245095] },
+      { n: 5, name: 'Amphitheatre',             role: 'Final · awards · closing',    ll: [-2.0355843358685246, 30.383417694093897] },
     ]
     __asyvMap = L.map('asyv-map', { scrollWheelZoom: false, zoomControl: true, attributionControl: true })
-                 .setView([-2.02870, 30.37730], 17)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19,
-      attribution: '© OpenStreetMap contributors'
+      attribution: 'Imagery © Esri, Maxar'
     }).addTo(__asyvMap)
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19, opacity: 0.9
+    }).addTo(__asyvMap)
+    const markers = []
     for (const v of VENUES) {
       const icon = L.divIcon({
         className: 'pin-wrap',
         html: '<div class="pin">' + v.n + '</div>',
         iconSize: [32, 32], iconAnchor: [16, 16]
       })
-      L.marker(v.ll, { icon }).addTo(__asyvMap)
-        .bindPopup('<b>' + v.n + '. ' + v.name + '</b><br>' + v.role)
+      const [lat, lng] = v.ll
+      const dir = 'https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng
+      const m = L.marker(v.ll, { icon }).addTo(__asyvMap)
+        .bindPopup('<b>' + v.n + '. ' + v.name + '</b><br>' + v.role + '<br><a href="' + dir + '" target="_blank" rel="noreferrer">Directions →</a>')
+      markers.push(m)
     }
+    __asyvMap.fitBounds(L.featureGroup(markers).getBounds().pad(0.25))
   }
   if (document.readyState === 'complete') initMap()
   else window.addEventListener('load', initMap)

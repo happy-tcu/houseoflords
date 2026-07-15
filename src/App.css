@@ -2724,3 +2724,27 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
 @media (max-width: 800px) {
   .venue-getting-there { grid-template-columns: 1fr; }
 }
+
+/* Leaflet popup styling for venue pins */
+.pin-pop-title {
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 14px; color: var(--brand-dark, #2b2c2d);
+  margin-bottom: 4px;
+}
+.pin-pop-role {
+  font-family: 'Montserrat', sans-serif; font-weight: 600;
+  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: rgba(43,44,45,0.6); margin-bottom: 10px;
+}
+.pin-pop-cta {
+  display: inline-block; padding: 6px 12px;
+  background: var(--brand-dark, #2b2c2d); color: var(--cream, #fbf7ee) !important;
+  text-decoration: none;
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+}
+.pin-pop-cta:hover { background: var(--brand-green-2, #7ab332); }
+.leaflet-control-layers-toggle {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232b2c2d'><path d='M12 2L2 8l10 6 10-6-10-6zm0 8L2 16l10 6 10-6-10-6z'/></svg>") !important;
+  background-size: 20px 20px !important;
+}

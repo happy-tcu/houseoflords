@@ -2,11 +2,11 @@ import { useEffect, useRef } from 'react'
 import PublicShell from '../../components/PublicShell'
 
 const VENUES = [
-  { n: 1, name: 'Liquidnet HS · East Wing', role: 'Check-in · drop-off · Prelims R1–R3', tag: 'Prelim',  ll: [-2.02780, 30.37680] },
-  { n: 2, name: 'Dining Hall',              role: 'Balcony rooms · lunch · Vision 2050 Wall', tag: 'Lunch',   ll: [-2.02815, 30.37700] },
-  { n: 3, name: 'Green House',              role: 'Quarterfinal room A', tag: 'Quarter', ll: [-2.02870, 30.37760] },
-  { n: 4, name: 'Orange House',             role: 'Quarterfinal room B', tag: 'Quarter', ll: [-2.02895, 30.37780] },
-  { n: 5, name: 'Amphitheatre',             role: 'Final · awards · closing', tag: 'Final',   ll: [-2.02955, 30.37750] },
+  { n: 1, name: 'Liquidnet HS · East Wing', role: 'Check-in · drop-off · Prelims R1–R3',       tag: 'Prelim',  ll: [-2.0285309800667926, 30.379097336650453] },
+  { n: 2, name: 'Dining Hall',              role: 'Balcony rooms · lunch · Vision 2050 Wall',  tag: 'Lunch',   ll: [-2.030515741198399,  30.38052045713727] },
+  { n: 3, name: 'Green House',              role: 'Quarterfinal room A',                       tag: 'Quarter', ll: [-2.0346583794589463, 30.383267024371563] },
+  { n: 4, name: 'Orange House',             role: 'Quarterfinal room B',                       tag: 'Quarter', ll: [-2.0344059952362854, 30.384603319245095] },
+  { n: 5, name: 'Amphitheatre',             role: 'Final · awards · closing',                  tag: 'Final',   ll: [-2.0355843358685246, 30.383417694093897] },
 ]
 
 function loadLeaflet() {
@@ -49,21 +49,49 @@ export default function VenuePage() {
     loadLeaflet().then(L => {
       if (cancelled || !L || !mapRef.current || mapInstance.current) return
       const map = L.map(mapRef.current, {
-        scrollWheelZoom: false, zoomControl: true, attributionControl: true,
-      }).setView([-2.02870, 30.37730], 17)
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap contributors',
-      }).addTo(map)
+        scrollWheelZoom: true, zoomControl: true, attributionControl: true,
+      })
+      // Satellite basemap + labels overlay (Esri World Imagery + Esri Reference).
+      const satellite = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 19, attribution: 'Imagery © Esri, Maxar, Earthstar Geographics' }
+      )
+      const labels = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 19, opacity: 0.9, attribution: '' }
+      )
+      const streets = L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        { maxZoom: 19, attribution: '© OpenStreetMap contributors' }
+      )
+      satellite.addTo(map)
+      labels.addTo(map)
+      L.control.layers(
+        { 'Satellite': satellite, 'Street map': streets },
+        { 'Place labels': labels },
+        { position: 'topright', collapsed: true }
+      ).addTo(map)
+      const markers = []
       for (const v of VENUES) {
         const icon = L.divIcon({
           className: 'venue-pin-wrap',
           html: `<div class="venue-map-pin">${v.n}</div>`,
           iconSize: [36, 36], iconAnchor: [18, 18],
         })
-        L.marker(v.ll, { icon }).addTo(map)
-          .bindPopup(`<b>${v.n}. ${v.name}</b><br>${v.role}`)
+        const [lat, lng] = v.ll
+        const dirUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+        const m = L.marker(v.ll, { icon }).addTo(map)
+          .bindPopup(
+            `<div class="pin-pop">` +
+              `<div class="pin-pop-title">${v.n}. ${v.name}</div>` +
+              `<div class="pin-pop-role">${v.role}</div>` +
+              `<a class="pin-pop-cta" href="${dirUrl}" target="_blank" rel="noreferrer">Directions →</a>` +
+            `</div>`
+          )
+        markers.push(m)
       }
+      const group = L.featureGroup(markers)
+      map.fitBounds(group.getBounds().pad(0.25))
       mapInstance.current = map
       setTimeout(() => map.invalidateSize(), 120)
     })
