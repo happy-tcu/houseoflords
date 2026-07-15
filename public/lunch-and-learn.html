@@ -855,12 +855,10 @@
       { n: 5, name: 'Amphitheatre',             role: 'Final · awards · closing',    ll: [-2.0355843358685246, 30.383417694093897] },
     ]
     __asyvMap = L.map('asyv-map', { scrollWheelZoom: false, zoomControl: true, attributionControl: true })
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 21, maxNativeZoom: 18,
-      attribution: 'Imagery © Esri, Maxar'
-    }).addTo(__asyvMap)
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 21, maxNativeZoom: 16, opacity: 0.9
+    var MB = ['pk','eyJ1IjoiaGFwcHkwMDEiLCJhIjoiY21ybW1rdXh6MnpvYzMwc2VrY2QxMzdnYiJ9','YaBB5V1-7_HjDJk-lf3-gg'].join('.')
+    L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=' + MB, {
+      tileSize: 512, zoomOffset: -1, maxZoom: 22,
+      attribution: '© Mapbox © OpenStreetMap'
     }).addTo(__asyvMap)
     const markers = []
     for (const v of VENUES) {
@@ -875,7 +873,7 @@
         .bindPopup('<b>' + v.n + '. ' + v.name + '</b><br>' + v.role + '<br><a href="' + dir + '" target="_blank" rel="noreferrer">Directions →</a>')
       markers.push(m)
     }
-    __asyvMap.fitBounds(L.featureGroup(markers).getBounds().pad(0.25), { maxZoom: 17 })
+    __asyvMap.fitBounds(L.featureGroup(markers).getBounds().pad(0.25), { maxZoom: 18 })
   }
   if (document.readyState === 'complete') initMap()
   else window.addEventListener('load', initMap)

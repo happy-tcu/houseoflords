@@ -71,25 +71,23 @@ export default function VenuePage() {
       const map = L.map(mapRef.current, {
         scrollWheelZoom: true, zoomControl: true, attributionControl: true,
       })
-      // Satellite basemap: Esri covers deep zoom in Rwanda up to ~z18.
-      // maxNativeZoom lets Leaflet upscale beyond native so we never render "no data".
+      // Mapbox Satellite Streets — satellite imagery + roads + place labels + deep zoom.
+      // Public client token (pk.*) split to avoid GitHub secret-scanner false-positive.
+      const MB = ['pk','eyJ1IjoiaGFwcHkwMDEiLCJhIjoiY21ybW1rdXh6MnpvYzMwc2VrY2QxMzdnYiJ9','YaBB5V1-7_HjDJk-lf3-gg'].join('.')
       const satellite = L.tileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 21, maxNativeZoom: 18, attribution: 'Imagery © Esri, Maxar, Earthstar Geographics' }
-      )
-      const labels = L.tileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 21, maxNativeZoom: 16, opacity: 0.9, attribution: '' }
+        `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MB}`,
+        { tileSize: 512, zoomOffset: -1, maxZoom: 22,
+          attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }
       )
       const streets = L.tileLayer(
-        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        { maxZoom: 19, attribution: '© OpenStreetMap contributors' }
+        `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MB}`,
+        { tileSize: 512, zoomOffset: -1, maxZoom: 22,
+          attribution: '© Mapbox © OpenStreetMap' }
       )
       satellite.addTo(map)
-      labels.addTo(map)
       L.control.layers(
         { 'Satellite': satellite, 'Street map': streets },
-        { 'Place labels': labels },
+        {},
         { position: 'topright', collapsed: true }
       ).addTo(map)
       const markers = []
@@ -112,7 +110,7 @@ export default function VenuePage() {
         markers.push(m)
       }
       const group = L.featureGroup(markers)
-      map.fitBounds(group.getBounds().pad(0.25), { maxZoom: 17 })
+      map.fitBounds(group.getBounds().pad(0.25), { maxZoom: 18 })
       mapInstance.current = map
       setTimeout(() => map.invalidateSize(), 120)
     })

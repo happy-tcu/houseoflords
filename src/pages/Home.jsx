@@ -50,7 +50,7 @@ export default function Home() {
               <span className="dot" />
               <span>18 July 2026</span>
               <span className="dot" />
-              <span>Kigali</span>
+              <span>Rwamagana &middot; Ntunga</span>
             </div>
 
             <h1 className="editorial-title">Dissecting Vision&nbsp;2050.</h1>
