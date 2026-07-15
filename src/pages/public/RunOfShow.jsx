@@ -5,7 +5,7 @@ const SLOTS = [
   ['11:29', '12:28', 'R2 — Prelim',                       '59 min', 'round'],
   ['12:28', '1:58',  'Lunch + Vision 2050 Wall',           '90 min', 'break'],
   ['1:58',  '2:57',  'R3 — Prelim',                        '59 min', 'round'],
-  ['2:57',  '3:56',  'R4 — Semi',                          '59 min', 'showcase'],
+  ['2:57',  '3:56',  'R4 — Quarters',                      '59 min', 'showcase'],
   ['3:56',  '4:55',  'R5 — Final',                         '59 min', 'showcase'],
   ['4:55',  '5:55',  'Judges deliberate + awards + closing','60 min','ceremony'],
   ['5:55',  '7:00',  'Buffer / Personal Time',              '65 min', 'buffer'],
@@ -34,8 +34,8 @@ export default function RunOfShowPage() {
           </div>
           <p className="lede">
             Prelims (R1&ndash;R3) fill the morning through early afternoon; lunch doubles as the
-            Vision&nbsp;2050 Wall session; semi and final take the afternoon; awards close the day
-            before dinner.
+            Vision&nbsp;2050 Wall session; quarters and final take the afternoon; awards close the day
+            before dinner. Winners advance to the final by wins + speaker points.
           </p>
         </div>
       </section>

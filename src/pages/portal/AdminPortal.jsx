@@ -454,7 +454,7 @@ function StandingsTab({ pairings, ballots }) {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState(null)
   async function buildBracket() {
-    if (!confirm('Build the R4 semi bracket from top 4 prelims? Existing R4/R5 pairings will be replaced.')) return
+    if (!confirm('Build the R4 quarters bracket from top 4 prelims? Existing R4/R5 pairings will be replaced.')) return
     setBusy(true); setNote(null)
     const { error } = await supabase.rpc('build_bracket')
     if (error) setNote(`Error: ${error.message}`)
@@ -491,7 +491,7 @@ function StandingsTab({ pairings, ballots }) {
     <div className="bracket-actions">
       {note && <div className="portal-msg">{note}</div>}
       <button className="btn-primary" onClick={buildBracket} disabled={busy || stats.length < 4}>
-        Build R4 semi from top 4
+        Build R4 quarters from top 4
       </button>
       <button className="btn-secondary" onClick={fillFinal} disabled={busy}>Fill R5 final</button>
     </div>
@@ -513,7 +513,7 @@ function StandingsTab({ pairings, ballots }) {
           ))}
         </tbody>
       </table>
-      <div className="portal-hint">Top 4 advance to R4 Semi. Wins → total points as tiebreaker.</div>
+      <div className="portal-hint">Top 4 advance to R4 Quarters. Wins → total points as tiebreaker.</div>
     </div>
     )}
     </>

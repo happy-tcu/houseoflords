@@ -129,6 +129,31 @@
     letter-spacing: 1.5px; text-transform: uppercase; color: var(--slate);
     opacity: 0.6;
   }
+  /* Tap navigation for touch devices */
+  .deck-nav {
+    position: fixed; bottom: 20px; left: 0; right: 0; z-index: 101;
+    display: flex; justify-content: center; gap: 14px; pointer-events: none;
+  }
+  .deck-nav button {
+    pointer-events: auto;
+    width: 56px; height: 56px; border-radius: 999px;
+    background: var(--dark); color: var(--cream); border: none;
+    font-size: 24px; font-weight: 700; line-height: 1;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .deck-nav button:disabled { opacity: 0.35; }
+  .deck-nav .num {
+    pointer-events: none;
+    align-self: center;
+    font-family: var(--ui); font-weight: 700; font-size: 12px;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--slate);
+    background: var(--cream); border: 1.5px solid var(--dark);
+    padding: 10px 14px; border-radius: 999px;
+  }
+  @media print { .deck-nav { display: none; } }
 
   /* Programme card */
   .prog-card {
@@ -410,6 +435,11 @@
 <body>
   <div class="deck-bar"><span id="bar" style="width: 10%"></span></div>
   <div class="deck-help">← / → · Space · Home / End</div>
+  <div class="deck-nav">
+    <button id="btnPrev" aria-label="Previous slide">◀</button>
+    <span class="num"><span id="cur">1</span> / <span id="total">10</span></span>
+    <button id="btnNext" aria-label="Next slide">▶</button>
+  </div>
 
   <div class="deck" id="deck">
 
@@ -458,7 +488,7 @@
         <div class="tl-row round"><span class="tl-time">11:29 → 12:28</span><span class="tl-label">R2 · Prelim</span><span class="tl-dur">59 min</span></div>
         <div class="tl-row break"><span class="tl-time">12:28 → 1:58</span><span class="tl-label">Lunch + Vision 2050 Wall</span><span class="tl-dur">90 min</span></div>
         <div class="tl-row round"><span class="tl-time">1:58 → 2:57</span><span class="tl-label">R3 · Prelim</span><span class="tl-dur">59 min</span></div>
-        <div class="tl-row showcase"><span class="tl-time">2:57 → 3:56</span><span class="tl-label">R4 · Semi (top 4)</span><span class="tl-dur">59 min</span></div>
+        <div class="tl-row showcase"><span class="tl-time">2:57 → 3:56</span><span class="tl-label">R4 · Quarters (top 4)</span><span class="tl-dur">59 min</span></div>
         <div class="tl-row showcase"><span class="tl-time">3:56 → 4:55</span><span class="tl-label">R5 · Final</span><span class="tl-dur">59 min</span></div>
         <div class="tl-row ceremony"><span class="tl-time">4:55 → 5:55</span><span class="tl-label">Awards + closing</span><span class="tl-dur">60 min</span></div>
       </div>
@@ -550,7 +580,7 @@
         <div class="axis"><div class="n">04</div><div class="name">Persuasion</div><div class="desc">Would you vote for their side?</div><div class="pts">/ 5</div></div>
       </div>
       <p class="lede" style="margin-top:28px;">
-        Tiebreakers: <b>wins first</b>, then total points. Top 4 across the prelims advance to the semi. Two winners face off in the final.
+        Tiebreakers: <b>wins first</b>, then total points. Top 4 across the prelims advance to the quarters. Quarter winners advance to the final by wins + speaker points.
       </p>
       <div class="slide-ft"><span>/20 per speaker · binary winner</span><span class="tag">Slide 6 / 10</span></div>
     </section>
@@ -648,11 +678,19 @@
 <script>
   const slides = Array.from(document.querySelectorAll('.slide'))
   const bar = document.getElementById('bar')
+  const btnPrev = document.getElementById('btnPrev')
+  const btnNext = document.getElementById('btnNext')
+  const curEl = document.getElementById('cur')
+  const totalEl = document.getElementById('total')
+  if (totalEl) totalEl.textContent = slides.length
   let idx = 0
   function go(n) {
     idx = Math.max(0, Math.min(slides.length - 1, n))
     slides.forEach((s, i) => s.classList.toggle('active', i === idx))
     bar.style.width = ((idx + 1) / slides.length * 100) + '%'
+    if (curEl) curEl.textContent = idx + 1
+    if (btnPrev) btnPrev.disabled = idx === 0
+    if (btnNext) btnNext.disabled = idx === slides.length - 1
     history.replaceState(null, '', '#' + (idx + 1))
   }
   function next() { go(idx + 1) }
@@ -664,11 +702,28 @@
     else if (e.key === 'End')  { go(slides.length - 1) }
     else if (e.key === 'p' && (e.metaKey || e.ctrlKey)) { /* let browser handle print */ }
   })
+  if (btnPrev) btnPrev.addEventListener('click', (e) => { e.stopPropagation(); prev() })
+  if (btnNext) btnNext.addEventListener('click', (e) => { e.stopPropagation(); next() })
   document.addEventListener('click', (e) => {
-    if (e.target.closest('a,button,input,select,textarea')) return
+    if (e.target.closest('a,button,input,select,textarea,.deck-nav')) return
     const x = e.clientX, w = window.innerWidth
     if (x > w * 0.6) next(); else if (x < w * 0.4) prev()
   })
+  // Swipe support (touch)
+  let touchX = null, touchY = null
+  document.addEventListener('touchstart', (e) => {
+    if (e.target.closest('a,button,input,select,textarea,.deck-nav')) { touchX = null; return }
+    const t = e.changedTouches[0]; touchX = t.clientX; touchY = t.clientY
+  }, { passive: true })
+  document.addEventListener('touchend', (e) => {
+    if (touchX == null) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - touchX, dy = t.clientY - touchY
+    touchX = null
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+      if (dx < 0) next(); else prev()
+    }
+  }, { passive: true })
   // Deep-link support via hash
   const initial = parseInt(location.hash.slice(1)) - 1
   if (!isNaN(initial) && initial >= 0 && initial < slides.length) go(initial)

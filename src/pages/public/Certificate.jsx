@@ -181,12 +181,12 @@ const PLACEMENTS = {
     citation:
       "For advancing to the House of Lords 2026 final and defending, with distinction, a compelling vision for Rwanda's next twenty-five years.",
   },
-  semifinalist: {
-    key: 'semifinalist',
-    title: 'Semifinalist',
+  quarterfinalist: {
+    key: 'quarterfinalist',
+    title: 'Quarterfinalist',
     subtitle: 'Top Four · House of Lords 2026',
     citation:
-      "For advancing to the House of Lords 2026 semifinal — placing among the top four scholar debaters in the interrogation of Vision 2050.",
+      "For advancing to the House of Lords 2026 quarterfinal — placing among the top four scholar debaters in the interrogation of Vision 2050.",
   },
   participant: {
     key: 'participant',
@@ -225,6 +225,6 @@ function derivePlacement(code, { pairings, ballots }) {
     return PLACEMENTS.finalist
   }
   const r4 = pairings.find(p => p.round_id === 'R4' && (p.aff_code === code || p.opp_code === code))
-  if (r4) return PLACEMENTS.semifinalist
+  if (r4) return PLACEMENTS.quarterfinalist
   return PLACEMENTS.participant
 }
