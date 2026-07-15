@@ -174,11 +174,6 @@ export default function RegisterPage() {
                       <option value="mixed">Mixed</option>
                     </select>
                   </label>
-                  <label className="reg-field span-4">
-                    <span className="reg-label">School / institution</span>
-                    <input type="text" value={schoolName} onChange={e => setSchoolName(e.target.value)}
-                      placeholder="Optional if not applicable" />
-                  </label>
                 </div>
               </fieldset>
 
