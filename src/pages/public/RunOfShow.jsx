@@ -25,7 +25,7 @@ export default function RunOfShowPage() {
             <span className="dot" />
             <span>18 July 2026</span>
             <span className="dot" />
-            <span>Kigali</span>
+            <span>Rwamagana &middot; Ntunga</span>
           </div>
           <span className="kicker">Run of Show</span>
           <h1>Ten thirty to seven.</h1>

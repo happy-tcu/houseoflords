@@ -149,7 +149,7 @@ export default function Certificate() {
                 <div className="cv-issued">
                   {isApproved ? `Issued ${new Date(myRequest.approved_at).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}`
                     : 'Draft · pending Faculty signature'}
-                  {' · Kigali, Rwanda'}
+                  {' · Rwamagana · Ntunga, Rwanda'}
                 </div>
               </div>
 
