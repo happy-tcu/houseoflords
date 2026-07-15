@@ -329,6 +329,10 @@
     font-size: 14px; letter-spacing: 3px; text-transform: uppercase; color: var(--slate);
   }
   .cover .meta span { color: var(--green-2); margin: 0 8px; }
+  .cover .kicker .sep, .cover .meta .sep {
+    display: inline-block; color: var(--green-2); opacity: 0.55;
+    font-weight: 400; margin: 0 10px; transform: translateY(-1px);
+  }
 
   /* Two-column balanced tips (slide 8) */
   .two-col {
@@ -412,11 +416,11 @@
     <!-- SLIDE 1 · Title -->
     <section class="slide cover active">
       <img src="/assets/isomo.png" alt="Isomo">
-      <span class="kicker">Lunch &amp; Learn · 15 July 2026</span>
+      <span class="kicker">Lunch &amp; Learn <span class="sep">|</span> 15 July 2026</span>
       <h1>House of Lords.</h1>
       <p class="deck-p" style="margin-top:12px;">Everything you need to know before Saturday.</p>
       <div class="meta">
-        <span>·</span> Dissecting Vision 2050 <span>·</span> Kigali <span>·</span>
+        <span class="sep">|</span> Dissecting Vision 2050 <span class="sep">|</span> Kigali <span class="sep">|</span>
       </div>
     </section>
 
