@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Isomo · House of Lords — Lunch &amp; Learn</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green:  #8cc63e; --green-2: #7ab332;
+    --blue:   #1dafec; --orange: #efb34a;
+    --dark:   #2b2c2d; --slate:  #4a4b4c;
+    --cream:  #fbf7ee; --panel:  #ffffff;
+    --line:   rgba(43,44,45,0.14);
+    --serif:  'Cormorant Garamond', Georgia, serif;
+    --ui:     'Montserrat', -apple-system, Segoe UI, Roboto, sans-serif;
+    --body:   'Open Sans', -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--body); background: var(--cream); color: var(--dark);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  .deck { position: relative; height: 100vh; overflow: hidden; }
+
+  /* One slide = one viewport */
+  .slide {
+    position: absolute; inset: 0;
+    padding: 72px 96px;
+    background: var(--cream);
+    display: flex; flex-direction: column;
+    opacity: 0; pointer-events: none;
+    transition: opacity 220ms ease;
+  }
+  .slide.active { opacity: 1; pointer-events: auto; }
+
+  /* Grid background — subtle */
+  .slide::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(to right, rgba(43,44,45,0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(43,44,45,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    z-index: 0;
+  }
+  .slide > * { position: relative; z-index: 1; }
+
+  /* Watermark logo (big transparent) */
+  .slide .watermark {
+    position: absolute; right: -80px; bottom: -80px;
+    width: 620px; opacity: 0.05; mix-blend-mode: multiply;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* Nav / brand row */
+  .slide-hd {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 20px; border-bottom: 1px solid var(--line);
+    margin-bottom: 40px;
+  }
+  .slide-brand { display: flex; align-items: center; gap: 14px; }
+  .slide-brand img { height: 44px; }
+  .slide-brand .pill {
+    font-family: var(--ui); font-weight: 800; font-size: 10px;
+    letter-spacing: 2.5px; text-transform: uppercase; color: var(--green-2);
+    background: rgba(140,198,62,0.14); padding: 5px 11px;
+  }
+  .slide-hd .meta {
+    font-family: var(--ui); font-weight: 700; font-size: 11px;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--slate);
+  }
+
+  /* Typography */
+  .kicker {
+    font-family: var(--ui); font-weight: 800; font-size: 11px;
+    letter-spacing: 3px; text-transform: uppercase; color: var(--green-2);
+    margin-bottom: 22px;
+  }
+  h1 {
+    font-family: var(--ui); font-weight: 800;
+    font-size: 84px; line-height: 1.02; letter-spacing: -2.5px;
+    margin-bottom: 18px;
+  }
+  h1.editorial {
+    font-family: var(--serif); font-style: italic; font-weight: 700;
+    letter-spacing: -1px;
+  }
+  h2 {
+    font-family: var(--ui); font-weight: 800;
+    font-size: 56px; line-height: 1.05; letter-spacing: -1.5px;
+    margin-bottom: 24px;
+  }
+  .deck-p {
+    font-family: var(--serif); font-style: italic; font-weight: 600;
+    font-size: 26px; line-height: 1.45; color: var(--slate);
+    max-width: 900px;
+  }
+  .lede {
+    font-family: var(--body); font-size: 20px; line-height: 1.55;
+    color: var(--slate); max-width: 780px;
+  }
+
+  /* Foot: slide number + progress + subtle brand */
+  .slide-ft {
+    margin-top: auto; padding-top: 24px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--ui); font-weight: 700; font-size: 11px;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--slate);
+    border-top: 1px solid var(--line);
+  }
+  .slide-ft .tag { color: var(--green-2); }
+
+  /* Progress bar (global) */
+  .deck-bar {
+    position: fixed; top: 0; left: 0; right: 0; height: 4px;
+    background: transparent; z-index: 100;
+  }
+  .deck-bar > span {
+    display: block; height: 100%; background: var(--green);
+    transition: width 220ms ease;
+  }
+  .deck-help {
+    position: fixed; bottom: 12px; right: 16px; z-index: 100;
+    font-family: var(--ui); font-weight: 700; font-size: 10px;
+    letter-spacing: 1.5px; text-transform: uppercase; color: var(--slate);
+    opacity: 0.6;
+  }
+
+  /* Programme card */
+  .prog-card {
+    background: var(--cream); border: 1.5px solid var(--dark);
+    padding: 22px 24px; max-width: 520px;
+  }
+  .pc-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 12px; border-bottom: 1px solid var(--dark);
+    margin-bottom: 20px;
+    font-family: var(--ui); font-weight: 800; font-size: 12px;
+    letter-spacing: 2px; text-transform: uppercase;
+  }
+  .pc-head .tag { color: var(--green-2); }
+  .pc-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    border: 1px solid var(--dark);
+  }
+  .pc-cell {
+    padding: 22px 20px;
+    border-right: 1px solid var(--dark); border-bottom: 1px solid var(--dark);
+  }
+  .pc-cell:nth-child(2n) { border-right: 0; }
+  .pc-cell:nth-child(n+3) { border-bottom: 0; }
+  .pc-v {
+    font-family: var(--serif); font-weight: 700; font-size: 64px;
+    line-height: 1; font-variant-numeric: tabular-nums;
+  }
+  .pc-k {
+    font-family: var(--ui); font-weight: 700; font-size: 10px;
+    letter-spacing: 2.5px; text-transform: uppercase; color: var(--slate);
+    margin-top: 10px;
+  }
+
+  /* Two-column layouts */
+  .split { display: grid; grid-template-columns: 1.2fr 1fr; gap: 60px; align-items: center; }
+  .split-3-2 { display: grid; grid-template-columns: 3fr 2fr; gap: 60px; align-items: center; }
+
+  /* Timeline (day plan) */
+  .timeline { display: flex; flex-direction: column; gap: 6px; }
+  .tl-row {
+    display: grid; grid-template-columns: 160px 1fr auto; gap: 16px;
+    padding: 14px 18px; align-items: center;
+    background: var(--panel); border: 1px solid var(--line);
+    border-left: 4px solid var(--slate);
+  }
+  .tl-row.round     { border-left-color: var(--dark); }
+  .tl-row.showcase  { border-left-color: var(--green); background: rgba(140,198,62,0.05); }
+  .tl-row.break     { border-left-color: var(--blue); background: rgba(29,175,236,0.05); }
+  .tl-row.ceremony  { border-left-color: var(--orange); background: rgba(239,179,74,0.05); }
+  .tl-time {
+    font-family: var(--ui); font-weight: 800; font-size: 14px; letter-spacing: 1px;
+    color: var(--dark);
+  }
+  .tl-label { font-family: var(--ui); font-weight: 700; font-size: 15px; color: var(--dark); }
+  .tl-dur {
+    font-family: var(--ui); font-weight: 700; font-size: 10px; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--slate);
+    padding: 4px 10px; background: var(--cream); border: 1px solid var(--line);
+  }
+
+  /* Numbered list */
+  .steps { display: flex; flex-direction: column; gap: 14px; }
+  .step {
+    display: grid; grid-template-columns: 48px 1fr; gap: 20px;
+    padding: 16px 20px; background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--green);
+  }
+  .step .n {
+    font-family: var(--serif); font-weight: 700; font-size: 40px;
+    line-height: 1; color: var(--green-2);
+  }
+  .step .body { font-family: var(--body); font-size: 17px; line-height: 1.45; color: var(--dark); }
+  .step .body b { font-family: var(--ui); font-weight: 800; }
+
+  /* Bullet list */
+  .bullets { display: flex; flex-direction: column; gap: 10px; }
+  .bullet {
+    display: grid; grid-template-columns: 22px 1fr; gap: 14px; align-items: baseline;
+    padding: 10px 0; border-bottom: 1px dashed var(--line);
+    font-family: var(--body); font-size: 18px; color: var(--dark);
+  }
+  .bullet:before {
+    content: ""; width: 8px; height: 8px; background: var(--green);
+    display: inline-block; transform: translateY(4px);
+  }
+  .bullet b { font-family: var(--ui); font-weight: 800; }
+
+  /* Big stat row */
+  .stats-inline { display: flex; gap: 40px; margin: 20px 0 40px; flex-wrap: wrap; }
+  .stat-inline .v {
+    font-family: var(--serif); font-weight: 700; font-size: 84px;
+    line-height: 1; color: var(--dark);
+  }
+  .stat-inline .k {
+    font-family: var(--ui); font-weight: 700; font-size: 10px;
+    letter-spacing: 2.5px; text-transform: uppercase; color: var(--slate); margin-top: 6px;
+  }
+
+  /* Motion strike diagram */
+  .strike-row {
+    display: grid; grid-template-columns: 30px 1fr auto; gap: 14px;
+    padding: 12px 16px; align-items: center;
+    background: var(--panel); border: 1px solid var(--line); margin-bottom: 6px;
+  }
+  .strike-row.struck { opacity: 0.4; background: #f5f2eb; }
+  .strike-row.struck .text {
+    text-decoration: line-through; text-decoration-color: #e74c3c;
+    text-decoration-thickness: 2px; color: #c0392b;
+  }
+  .strike-row.final { background: rgba(140,198,62,0.10); border-color: var(--green); border-width: 2px; }
+  .strike-row .n {
+    font-family: var(--ui); font-weight: 800; font-size: 13px; color: var(--slate);
+    text-align: center;
+  }
+  .strike-row .text { font-size: 14px; color: var(--dark); }
+  .strike-row .badge {
+    font-family: var(--ui); font-weight: 800; font-size: 10px;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 4px 10px;
+  }
+  .strike-row .badge.strike { background: #e74c3c; color: #fff; }
+  .strike-row .badge.debate { background: var(--green); color: #fff; }
+  .strike-row .badge.wait { background: var(--panel); color: var(--slate); border: 1px solid var(--line); }
+
+  /* Segment timing table */
+  .timing-table {
+    width: 100%; border-collapse: collapse; background: var(--panel);
+  }
+  .timing-table th, .timing-table td {
+    padding: 12px 18px; border-bottom: 1px solid var(--line);
+    font-family: var(--ui); font-size: 14px; text-align: left;
+  }
+  .timing-table th {
+    font-weight: 700; font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--slate); background: var(--cream);
+  }
+  .timing-table td.dur {
+    font-weight: 800; color: var(--green-2); text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .timing-table tr.total td {
+    border-top: 2px solid var(--dark); border-bottom: 0;
+    font-weight: 800; color: var(--dark);
+  }
+
+  /* Signal chips */
+  .signals { display: flex; gap: 10px; margin: 24px 0; }
+  .sig {
+    padding: 12px 20px; font-family: var(--ui); font-weight: 800;
+    font-size: 16px; letter-spacing: 1.5px; color: #fff;
+  }
+  .sig.a30 { background: var(--orange); }
+  .sig.a15 { background: var(--orange); }
+  .sig.stp { background: #e74c3c; }
+
+  /* Score axes cards */
+  .axes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
+  .axis {
+    background: var(--panel); border: 1px solid var(--line);
+    border-top: 4px solid var(--green); padding: 18px;
+  }
+  .axis .n {
+    font-family: var(--ui); font-weight: 800; font-size: 10px; letter-spacing: 2px;
+    color: var(--green-2);
+  }
+  .axis .name {
+    font-family: var(--ui); font-weight: 800; font-size: 18px;
+    color: var(--dark); margin: 8px 0 4px;
+  }
+  .axis .desc { font-size: 12px; color: var(--slate); line-height: 1.4; }
+  .axis .pts {
+    margin-top: 12px; font-family: var(--serif); font-weight: 700;
+    font-size: 28px; color: var(--dark);
+  }
+
+  /* App card / QR area */
+  .app-card {
+    background: var(--dark); color: #fff;
+    padding: 40px; text-align: center; max-width: 460px;
+  }
+  .app-card .u {
+    font-family: var(--ui); font-weight: 800; font-size: 24px;
+    letter-spacing: 1px; margin-bottom: 10px;
+  }
+  .app-card .p { font-size: 15px; opacity: 0.85; line-height: 1.5; }
+
+  /* Slide-specific */
+  .cover { justify-content: center; align-items: center; text-align: center; padding: 40px; }
+  .cover img { height: 160px; margin-bottom: 30px; }
+  .cover .kicker { color: var(--green-2); margin-bottom: 14px; }
+  .cover h1 { font-size: 108px; letter-spacing: -3.5px; line-height: 0.98; }
+  .cover .meta {
+    margin-top: 24px; font-family: var(--ui); font-weight: 700;
+    font-size: 14px; letter-spacing: 3px; text-transform: uppercase; color: var(--slate);
+  }
+  .cover .meta span { color: var(--green-2); margin: 0 8px; }
+
+  /* Two-color side markers for slide 4 */
+  .sides { display: flex; gap: 20px; margin-top: 20px; }
+  .side-box {
+    flex: 1; padding: 30px 24px; color: #fff;
+  }
+  .side-box.aff { background: var(--blue); }
+  .side-box.opp { background: var(--orange); color: var(--dark); }
+  .side-box .role {
+    font-family: var(--ui); font-weight: 800; font-size: 48px; letter-spacing: -1px;
+  }
+  .side-box .desc {
+    font-family: var(--serif); font-style: italic; font-size: 18px; margin-top: 8px;
+  }
+
+  /* Print: 1 slide per page */
+  @media print {
+    @page { size: A4 landscape; margin: 0; }
+    html, body { overflow: visible; height: auto; }
+    .deck { height: auto; }
+    .slide {
+      position: relative; opacity: 1 !important; pointer-events: auto;
+      page-break-after: always; break-after: page;
+      min-height: 100vh;
+    }
+    .deck-bar, .deck-help { display: none; }
+  }
+
+  /* Mobile — just for preview, real deck is desktop */
+  @media (max-width: 800px) {
+    .slide { padding: 32px 24px; }
+    h1 { font-size: 48px; letter-spacing: -1.2px; }
+    .cover h1 { font-size: 64px; }
+    h2 { font-size: 32px; }
+    .deck-p { font-size: 18px; }
+    .split, .split-3-2 { grid-template-columns: 1fr; gap: 24px; }
+    .axes { grid-template-columns: 1fr 1fr; }
+    .stat-inline .v { font-size: 56px; }
+  }
+</style>
+</head>
+<body>
+  <div class="deck-bar"><span id="bar" style="width: 10%"></span></div>
+  <div class="deck-help">← / → · Space · Home / End</div>
+
+  <div class="deck" id="deck">
+
+    <!-- SLIDE 1 · Title -->
+    <section class="slide cover active">
+      <img src="/assets/isomo.png" alt="Isomo">
+      <span class="kicker">Lunch &amp; Learn · 15 July 2026</span>
+      <h1>House of Lords.</h1>
+      <p class="deck-p" style="margin-top:12px;">Everything you need to know before Saturday.</p>
+      <div class="meta">
+        <span>·</span> Dissecting Vision 2050 <span>·</span> Kigali <span>·</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 2 · Why + numbers -->
+    <section class="slide">
+      <div class="slide-hd">
+        <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">Lunch &amp; Learn</span></div>
+        <span class="meta">01 · Why we're doing this</span>
+      </div>
+      <img class="watermark" src="/assets/isomo.png" alt="">
+      <span class="kicker">Vision 2050</span>
+      <h1 class="editorial">You will inherit this vision.</h1>
+      <p class="deck-p" style="margin: 20px 0 40px;">
+        Saturday is the day you stop being an audience for Rwanda&rsquo;s next twenty-five years and start being one of its authors.
+      </p>
+      <div class="stats-inline">
+        <div class="stat-inline"><div class="v">5</div><div class="k">Rounds</div></div>
+        <div class="stat-inline"><div class="v">25</div><div class="k">Motions</div></div>
+        <div class="stat-inline"><div class="v">60</div><div class="k">Speakers</div></div>
+        <div class="stat-inline"><div class="v">30</div><div class="k">Judges</div></div>
+      </div>
+      <div class="slide-ft"><span>Isomo · House of Lords</span><span class="tag">Slide 2 / 10</span></div>
+    </section>
+
+    <!-- SLIDE 3 · Day timeline -->
+    <section class="slide">
+      <div class="slide-hd">
+        <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">The day</span></div>
+        <span class="meta">02 · Saturday · 10:30 → 7:00</span>
+      </div>
+      <img class="watermark" src="/assets/isomo.png" alt="">
+      <h2>The day, hour by hour.</h2>
+      <div class="timeline">
+        <div class="tl-row round"><span class="tl-time">10:30 → 11:29</span><span class="tl-label">R1 · Prelim</span><span class="tl-dur">59 min</span></div>
+        <div class="tl-row round"><span class="tl-time">11:29 → 12:28</span><span class="tl-label">R2 · Prelim</span><span class="tl-dur">59 min</span></div>
+        <div class="tl-row break"><span class="tl-time">12:28 → 1:58</span><span class="tl-label">Lunch + Vision 2050 Wall</span><span class="tl-dur">90 min</span></div>
+        <div class="tl-row round"><span class="tl-time">1:58 → 2:57</span><span class="tl-label">R3 · Prelim</span><span class="tl-dur">59 min</span></div>
+        <div class="tl-row showcase"><span class="tl-time">2:57 → 3:56</span><span class="tl-label">R4 · Semi (top 4)</span><span class="tl-dur">59 min</span></div>
+        <div class="tl-row showcase"><span class="tl-time">3:56 → 4:55</span><span class="tl-label">R5 · Final</span><span class="tl-dur">59 min</span></div>
+        <div class="tl-row ceremony"><span class="tl-time">4:55 → 5:55</span><span class="tl-label">Awards + closing</span><span class="tl-dur">60 min</span></div>
+      </div>
+      <div class="slide-ft"><span>Timings are hard — move on the minute</span><span class="tag">Slide 3 / 10</span></div>
+    </section>
+
+    <!-- SLIDE 4 · Format 1v1 + Striking -->
+    <section class="slide">
+      <div class="slide-hd">
+        <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">Format</span></div>
+        <span class="meta">03 · IPDA Impromptu · 1 vs 1</span>
+      </div>
+      <img class="watermark" src="/assets/isomo.png" alt="">
+      <h2>1 vs 1. Five motions. You strike them down.</h2>
+      <div class="split" style="margin-top:20px;">
+        <div>
+          <p class="lede">Every round hands your room <b>five motions</b>. You don&rsquo;t pick — you cancel.</p>
+          <div class="steps" style="margin-top:20px;">
+            <div class="step"><div class="n">1</div><div class="body"><b>Opp strikes first.</b> Cancels one motion.</div></div>
+            <div class="step"><div class="n">2</div><div class="body"><b>Prop strikes next.</b> Cancels one.</div></div>
+            <div class="step"><div class="n">3</div><div class="body"><b>Alternate</b> until 4 are gone.</div></div>
+            <div class="step"><div class="n">4</div><div class="body">The <b>one that remains</b> is your debate motion.</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="strike-row struck"><span class="n">1</span><span class="text">THW require every uni student to complete a Vision 2050 civic project.</span><span class="badge">✕</span></div>
+          <div class="strike-row struck"><span class="n">2</span><span class="text">THBT waiting for a &ldquo;seat at the table&rdquo; is complicity.</span><span class="badge">✕</span></div>
+          <div class="strike-row struck"><span class="n">3</span><span class="text">THW cap the age of cell-level leaders at 35.</span><span class="badge">✕</span></div>
+          <div class="strike-row struck"><span class="n">4</span><span class="text">THBT proximity to power corrupts young reformers.</span><span class="badge">✕</span></div>
+          <div class="strike-row final"><span class="n">5</span><span class="text"><b>THBT Rwanda&rsquo;s future will be written by those who did not wait to be asked.</b></span><span class="badge debate">Debate this</span></div>
+        </div>
+      </div>
+      <div class="slide-ft"><span>The one that survives is yours</span><span class="tag">Slide 4 / 10</span></div>
+    </section>
+
+    <!-- SLIDE 5 · Timing map -->
+    <section class="slide">
+      <div class="slide-hd">
+        <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">Timing</span></div>
+        <span class="meta">04 · 59 minutes, timed to the second</span>
+      </div>
+      <img class="watermark" src="/assets/isomo.png" alt="">
+      <h2>Every second is measured.</h2>
+      <div class="split-3-2" style="margin-top:20px;">
+        <table class="timing-table">
+          <thead><tr><th>Segment</th><th style="text-align:right;">Time</th></tr></thead>
+          <tbody>
+            <tr><td>Motion release + prep</td><td class="dur">30:00</td></tr>
+            <tr><td>Prop constructive</td><td class="dur">5:00</td></tr>
+            <tr><td>CX — Opp asks Prop</td><td class="dur">2:00</td></tr>
+            <tr><td>Opp opening</td><td class="dur">6:00</td></tr>
+            <tr><td>CX — Prop asks Opp</td><td class="dur">2:00</td></tr>
+            <tr><td>Prop rebuttal</td><td class="dur">3:00</td></tr>
+            <tr><td>Opp closing</td><td class="dur">5:00</td></tr>
+            <tr><td>Prop closing</td><td class="dur">3:00</td></tr>
+            <tr><td>Judge voting</td><td class="dur">3:00</td></tr>
+            <tr class="total"><td>Round total</td><td class="dur">59:00</td></tr>
+          </tbody>
+        </table>
+        <div>
+          <p class="lede">The judge is the timekeeper. Signals appear silently:</p>
+          <div class="signals">
+            <span class="sig a30">30s</span>
+            <span class="sig a15">15s</span>
+            <span class="sig stp">STOP</span>
+          </div>
+          <p class="lede" style="margin-top:24px;">
+            When STOP fires you have zero grace. <b>Content after the buzzer is not scored.</b>
+            The room hears an alarm at 0:00.
+          </p>
+        </div>
+      </div>
+      <div class="slide-ft"><span>Hard time · no exceptions</span><span class="tag">Slide 5 / 10</span></div>
+    </section>
+
+    <!-- SLIDE 6 · Scoring -->
+    <section class="slide">
+      <div class="slide-hd">
+        <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">Scoring</span></div>
+        <span class="meta">05 · How judges decide</span>
+      </div>
+      <img class="watermark" src="/assets/isomo.png" alt="">
+      <h2>Four axes. One winner.</h2>
+      <p class="lede">Every speaker gets scored on 4 things, 5 points each. Then the judge picks a winner — not always the higher score, but the one who argued the round better.</p>
+      <div class="axes">
+        <div class="axis"><div class="n">01</div><div class="name">Argument</div><div class="desc">Clarity of claim, logic, evidence.</div><div class="pts">/ 5</div></div>
+        <div class="axis"><div class="n">02</div><div class="name">Rebuttal &amp; CX</div><div class="desc">Direct engagement, quality of Q&amp;A.</div><div class="pts">/ 5</div></div>
+        <div class="axis"><div class="n">03</div><div class="name">Delivery</div><div class="desc">Pace, clarity, presence, use of time.</div><div class="pts">/ 5</div></div>
+        <div class="axis"><div class="n">04</div><div class="name">Persuasion</div><div class="desc">Would you vote for their side?</div><div class="pts">/ 5</div></div>
+      </div>
+      <p class="lede" style="margin-top:28px;">
+        Tiebreakers: <b>wins first</b>, then total points. Top 4 across the prelims advance to the semi. Two winners face off in the final.
+      </p>
+      <div class="slide-ft"><span>/20 per speaker · binary winner</span><span class="tag">Slide 6 / 10</span></div>
+    </section>
+
+    <!-- SLIDE 7 · How to prep in 30 min -->
+    <section class="slide">
+      <div class="slide-hd">
+        <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">Prep</span></div>
+        <span class="meta">06 · What to actually do in 30 minutes</span>
+      </div>
+      <img class="watermark" src="/assets/isomo.png" alt="">
+      <h2>Your 30-min prep recipe.</h2>
+      <div class="steps" style="margin-top:20px;">
+        <div class="step"><div class="n">1</div><div class="body"><b>2 min · Read the motion aloud.</b> Define every ambiguous word before you argue about it.</div></div>
+        <div class="step"><div class="n">2</div><div class="body"><b>5 min · Three arguments, one line each.</b> If you can't fit an argument in one sentence, you don't understand it yet.</div></div>
+        <div class="step"><div class="n">3</div><div class="body"><b>5 min · One story per argument.</b> A Rwanda-specific example. Not a study, not a stat — a story.</div></div>
+        <div class="step"><div class="n">4</div><div class="body"><b>3 min · Predict their three attacks.</b> Write your first-line rebuttal for each.</div></div>
+        <div class="step"><div class="n">5</div><div class="body"><b>15 min · Rehearse the constructive out loud.</b> Not in your head. Time yourself. Land the last line.</div></div>
+      </div>
+      <div class="slide-ft"><span>Silence in your head ≠ silence on the floor</span><span class="tag">Slide 7 / 10</span></div>
+    </section>
+
+    <!-- SLIDE 8 · In-speech + CX -->
+    <section class="slide">
+      <div class="slide-hd">
+        <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">In the room</span></div>
+        <span class="meta">07 · During your speech + CX</span>
+      </div>
+      <img class="watermark" src="/assets/isomo.png" alt="">
+      <div class="sides">
+        <div class="side-box aff">
+          <div class="role">PROP</div>
+          <div class="desc">You argue for the motion.</div>
+        </div>
+        <div class="side-box opp">
+          <div class="role">OPP</div>
+          <div class="desc">You argue against the motion.</div>
+        </div>
+      </div>
+      <h2 style="font-size:36px; margin-top:36px;">While you're speaking:</h2>
+      <div class="bullets">
+        <div class="bullet"><span></span><span><b>Signpost.</b> &ldquo;My first argument… my second… my third.&rdquo; Judges write faster than they think.</span></div>
+        <div class="bullet"><span></span><span><b>One point per minute.</b> Anything more and nobody remembers.</span></div>
+        <div class="bullet"><span></span><span><b>Land the line.</b> Your last sentence is what the judge writes down.</span></div>
+      </div>
+      <h2 style="font-size:36px; margin-top:24px;">In cross-ex:</h2>
+      <div class="bullets">
+        <div class="bullet"><span></span><span><b>Short questions.</b> If your question has &ldquo;and&rdquo; in it, cut it in half.</span></div>
+        <div class="bullet"><span></span><span><b>Don&rsquo;t argue in the question</b> — use their <em>answer</em>.</span></div>
+      </div>
+      <div class="slide-ft"><span>Signpost · shorten · land</span><span class="tag">Slide 8 / 10</span></div>
+    </section>
+
+    <!-- SLIDE 9 · Common mistakes -->
+    <section class="slide">
+      <div class="slide-hd">
+        <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">Don&rsquo;ts</span></div>
+        <span class="meta">08 · What loses rounds on day one</span>
+      </div>
+      <img class="watermark" src="/assets/isomo.png" alt="">
+      <h2 class="editorial">These lose rounds. Every time.</h2>
+      <div class="steps" style="margin-top:28px;">
+        <div class="step" style="border-left-color:#e74c3c;"><div class="n" style="color:#c0392b;">1</div><div class="body"><b>Reading a full script.</b> Judges score presence. Notes are fine, scripts kill you.</div></div>
+        <div class="step" style="border-left-color:#e74c3c;"><div class="n" style="color:#c0392b;">2</div><div class="body"><b>Apologizing.</b> &ldquo;I&rsquo;m not sure but…&rdquo; &ldquo;This is just an idea…&rdquo; Delete these from your vocabulary Saturday.</div></div>
+        <div class="step" style="border-left-color:#e74c3c;"><div class="n" style="color:#c0392b;">3</div><div class="body"><b>Running out mid-sentence at STOP.</b> Time your closing to land at 0:15, not 0:00.</div></div>
+        <div class="step" style="border-left-color:#e74c3c;"><div class="n" style="color:#c0392b;">4</div><div class="body"><b>Ignoring their strongest argument.</b> Judges notice. Address it, even if briefly.</div></div>
+      </div>
+      <div class="slide-ft"><span>Presence &gt; polish · answer &gt; ignore</span><span class="tag">Slide 9 / 10</span></div>
+    </section>
+
+    <!-- SLIDE 10 · The app + logistics -->
+    <section class="slide">
+      <div class="slide-hd">
+        <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">The app</span></div>
+        <span class="meta">09 · Everything is in one place</span>
+      </div>
+      <img class="watermark" src="/assets/isomo.png" alt="">
+      <div class="split" style="align-items:center;">
+        <div>
+          <h2>Sign in Saturday.</h2>
+          <p class="lede">Your room. Your side. Your opponent. The motion. The timer. All live.</p>
+          <div class="steps" style="margin-top:24px;">
+            <div class="step"><div class="n">1</div><div class="body">Go to <b>houseoflords.vercel.app</b> on your phone.</div></div>
+            <div class="step"><div class="n">2</div><div class="body">Click <b>Sign in with Google</b>, use your school email.</div></div>
+            <div class="step"><div class="n">3</div><div class="body">You&rsquo;ll land on your <b>Debater portal</b>. Everything you need is there.</div></div>
+          </div>
+        </div>
+        <div class="app-card">
+          <div class="u">houseoflords<br>.vercel.app</div>
+          <div class="p" style="margin-top:20px;">Bookmark it now. Test the sign-in tonight.<br>If it doesn't work Saturday morning, ping an organizer immediately.</div>
+        </div>
+      </div>
+      <div class="slide-ft"><span>See you Saturday</span><span class="tag">Slide 10 / 10</span></div>
+    </section>
+  </div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'))
+  const bar = document.getElementById('bar')
+  let idx = 0
+  function go(n) {
+    idx = Math.max(0, Math.min(slides.length - 1, n))
+    slides.forEach((s, i) => s.classList.toggle('active', i === idx))
+    bar.style.width = ((idx + 1) / slides.length * 100) + '%'
+    history.replaceState(null, '', '#' + (idx + 1))
+  }
+  function next() { go(idx + 1) }
+  function prev() { go(idx - 1) }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); next() }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev() }
+    else if (e.key === 'Home') { go(0) }
+    else if (e.key === 'End')  { go(slides.length - 1) }
+    else if (e.key === 'p' && (e.metaKey || e.ctrlKey)) { /* let browser handle print */ }
+  })
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('a,button,input,select,textarea')) return
+    const x = e.clientX, w = window.innerWidth
+    if (x > w * 0.6) next(); else if (x < w * 0.4) prev()
+  })
+  // Deep-link support via hash
+  const initial = parseInt(location.hash.slice(1)) - 1
+  if (!isNaN(initial) && initial >= 0 && initial < slides.length) go(initial)
+  else go(0)
+</script>
+</body>
+</html>

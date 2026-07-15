@@ -53,12 +53,17 @@ export default function DebaterPortal() {
           <div className="dp-live-top">
             <span className={`state-pill st-${active.state}`}>{active.id} · {active.state}</span>
           </div>
+
+          {/* Full-width side banner — biggest, boldest fact of the round */}
+          <div className={`side-banner ${mySide === 'Aff' ? 'side-aff' : 'side-opp'}`}>
+            <div className="sb-mark">{mySide === 'Aff' ? 'PROP' : 'OPP'}</div>
+            <div className="sb-sub">
+              You argue <b>{mySide === 'Aff' ? 'for' : 'against'}</b> the motion
+            </div>
+          </div>
+
           <div className="dp-live-grid">
             <div className="dp-live-block"><div className="k">Your Room</div><div className="v">#{activeMine.room}</div></div>
-            <div className={`dp-live-block ${mySide === 'Aff' ? 'aff' : 'opp'}`}>
-              <div className="k">Your Side</div>
-              <div className="v">{mySide === 'Aff' ? 'PROP' : 'OPP'}</div>
-            </div>
             <div className="dp-live-block">
               <div className="k">Opponent</div>
               <div className="v">{mySide === 'Aff' ? activeMine.opp_code : activeMine.aff_code}</div>

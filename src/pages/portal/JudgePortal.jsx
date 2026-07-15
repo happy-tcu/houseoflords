@@ -52,6 +52,7 @@ export default function JudgePortal() {
   const [msg, setMsg] = useState(null)
   const [draftSyncing, setDraftSyncing] = useState(false)
   const [draftSavedAt, setDraftSavedAt] = useState(null)
+  const [confirming, setConfirming] = useState(false)
   useTick(500)
 
   const { rows: rounds } = useRealtime('rounds', {}, [])
@@ -113,7 +114,9 @@ export default function JudgePortal() {
   function set(field, val) { setBallot(b => ({ ...b, [field]: val })) }
 
   async function onSubmit(e) {
-    e.preventDefault(); setBusy(true); setMsg(null)
+    e?.preventDefault?.()
+    if (!confirming) { setConfirming(true); return }
+    setBusy(true); setMsg(null)
     try {
       const row = {
         round_id: active.id, room: mine.room, judge_code: profile.code,
@@ -132,7 +135,7 @@ export default function JudgePortal() {
       // drop the draft
       await supabase.from('ballot_drafts').delete()
         .eq('round_id', active.id).eq('room', mine.room).eq('judge_code', profile.code)
-      setMsg('Ballot submitted.'); setBallot(empty())
+      setMsg('Ballot submitted.'); setBallot(empty()); setConfirming(false)
     } catch (e) { setMsg(`Error: ${e.message}`) }
     setBusy(false)
   }
@@ -284,14 +287,17 @@ export default function JudgePortal() {
                             <span className="col-code">{side === 'aff' ? mine.aff_code : mine.opp_code}</span>
                           </div>
                           {AXES.map(a => (
-                            <label key={a.key} className="score-input-row">
+                            <div key={a.key} className="score-pill-row">
                               <span className="sr-name">{a.name}</span>
-                              <input type="number" min="0" max="5" required
-                                     disabled={scoresLocked}
-                                     value={ballot[`${side}_${a.key}`]}
-                                     onChange={e => set(`${side}_${a.key}`, e.target.value)} />
-                              <span className="sr-max">/ 5</span>
-                            </label>
+                              <div className={`score-pills side-${side}`}>
+                                {[0,1,2,3,4,5].map(n => (
+                                  <button type="button" key={n}
+                                          disabled={scoresLocked}
+                                          className={`score-pill ${Number(ballot[`${side}_${a.key}`]) === n ? 'sel' : ''}`}
+                                          onClick={() => set(`${side}_${a.key}`, String(n))}>{n}</button>
+                                ))}
+                              </div>
+                            </div>
                           ))}
                           <div className="col-total">Total <b>{total(side)}<small> / 20</small></b></div>
                           <label className="note-row">
@@ -326,9 +332,38 @@ export default function JudgePortal() {
                     <button type="submit" className="btn-primary" disabled={busy || scoresLocked}>
                       {scoresLocked
                         ? (unlock.remaining != null ? `Locked — unlocks in ${fmt(unlock.remaining)}` : 'Locked')
-                        : busy ? 'Submitting…' : 'Submit ballot'}
+                        : busy ? 'Submitting…' : 'Review & submit'}
                     </button>
                   </form>
+
+                  {confirming && !scoresLocked && (
+                    <div className="ballot-confirm-sheet">
+                      <div className="bcs-card">
+                        <div className="bcs-title">Confirm this ballot</div>
+                        <div className="bcs-summary">
+                          <div className={`bcs-side ${ballot.winner === 'aff' ? 'winner' : ''}`}>
+                            <span className="side-tag aff">PROP</span>
+                            <span className="bcs-code">{mine.aff_code}</span>
+                            <span className="bcs-total">{total('aff')}<small>/20</small></span>
+                          </div>
+                          <div className={`bcs-side ${ballot.winner === 'opp' ? 'winner' : ''}`}>
+                            <span className="side-tag opp">OPP</span>
+                            <span className="bcs-code">{mine.opp_code}</span>
+                            <span className="bcs-total">{total('opp')}<small>/20</small></span>
+                          </div>
+                        </div>
+                        <div className="bcs-winner">
+                          Winner: <b>{ballot.winner === 'aff' ? `PROP · ${mine.aff_code}` : `OPP · ${mine.opp_code}`}</b>
+                        </div>
+                        <div className="bcs-actions">
+                          <button className="btn-secondary" onClick={() => setConfirming(false)}>Back</button>
+                          <button className="btn-primary" onClick={onSubmit} disabled={busy}>
+                            {busy ? 'Submitting…' : '✓ Confirm submit'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               )
             })()

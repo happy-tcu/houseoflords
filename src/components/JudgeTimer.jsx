@@ -48,12 +48,22 @@ export default function JudgeTimer({ pairing }) {
     if (error) alert(error.message)
   }
 
+  async function skipToNext() {
+    if (!nextKey) return
+    if (!confirm(`Skip the remaining time and start ${SEGMENT_MAP[nextKey].label}?`)) return
+    startSegment(nextKey)
+  }
+  async function startNext() {
+    if (!nextKey) return
+    startSegment(nextKey)
+  }
+
   return (
     <div className={`timer timer-${cur.kind} ${warn ? `timer-${warn}` : ''}`}>
       <div className="timer-top">
         <div className="timer-seg">
-          <span className="timer-kicker">Current segment</span>
-          <div className="timer-name">{cur.label}</div>
+          <span className="timer-kicker">Now</span>
+          <div className={`timer-name segment-${cur.kind}`}>{cur.label}</div>
         </div>
         {cur.key !== 'idle' && cur.key !== 'done' && cur.seconds > 0 && (
           <button className="timer-reset" onClick={restartSpeech}>↻ Restart speech</button>
@@ -74,16 +84,24 @@ export default function JudgeTimer({ pairing }) {
         {cur.key === 'idle' && (
           <span className="timer-hint">Timer auto-starts on the first strike.</span>
         )}
-        {cur.key !== 'idle' && cur.key !== 'done' && nextKey && (
-          <button className={`btn-primary ${timeUp ? 'pulse' : ''}`} onClick={() => startSegment(nextKey)}>
-            {timeUp ? `▶ Start — ${SEGMENT_MAP[nextKey].label}`
-                    : `Skip to — ${SEGMENT_MAP[nextKey].label}`}
-          </button>
-        )}
         {cur.key === 'done' && (
           <button className="btn-secondary" onClick={() => startSegment('idle')}>Reset</button>
         )}
+
+        {cur.key !== 'idle' && cur.key !== 'done' && nextKey && timeUp && (
+          <button className="btn-start-next" onClick={startNext}>
+            ▶ Start — {SEGMENT_MAP[nextKey].label}
+          </button>
+        )}
+        {cur.key !== 'idle' && cur.key !== 'done' && nextKey && !timeUp && (
+          <button className="btn-skip-next" onClick={skipToNext} title="Skip remaining time">
+            Skip → {SEGMENT_MAP[nextKey].label}
+          </button>
+        )}
       </div>
+      {nextKey && !timeUp && cur.key !== 'idle' && cur.key !== 'done' && (
+        <div className="timer-nextup">Next: {SEGMENT_MAP[nextKey].label}</div>
+      )}
 
       <div className="timer-strip">
         {SEGMENTS.filter(s => s.key !== 'idle' && s.key !== 'done').map(s => (

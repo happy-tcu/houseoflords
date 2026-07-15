@@ -17,7 +17,7 @@ export default function AdminPortal() {
     { order: { column: 'created_at', ascending: false } }, [])
 
   const [msg, setMsg] = useState(null)
-  const [tab, setTab] = useState('rounds') // rounds | motions | ballots | standings | broadcast | whitelist
+  const [tab, setTab] = useState('now')
 
   const pairingsByRound = useMemo(() => group(pairings || [], p => p.round_id), [pairings])
   const motionsByRound  = useMemo(() => group(motions  || [], m => m.round_id), [motions])
@@ -51,10 +51,11 @@ export default function AdminPortal() {
 
       <div className="admin-tabs">
         {[
-          ['rounds',   'Round Control'],
-          ['live',     'Live Rooms'],
-          ['motions',  'Round Motions'],
-          ['ballots',  'Ballot Tracker'],
+          ['now',     'Now'],
+          ['rounds',  'Round Control'],
+          ['live',    'Live Rooms'],
+          ['motions', 'Round Motions'],
+          ['ballots', 'Ballot Tracker'],
           ['standings','Standings'],
           ['broadcast','Announcements'],
           ['certs',   'Certificates'],
@@ -64,6 +65,7 @@ export default function AdminPortal() {
         ))}
       </div>
 
+      {tab === 'now'    && <NowTab rounds={rounds || []} pairings={pairings || []} ballots={ballots || []} />}
       {tab === 'rounds' && <RoundsTab rounds={rounds || []} pairingsByRound={pairingsByRound}
                                      motionsByRound={motionsByRound} ballotsByRound={ballotsByRound}
                                      onMsg={setMsg} />}
@@ -152,6 +154,93 @@ function RoundsTab({ rounds, pairingsByRound, motionsByRound, ballotsByRound, on
           </div>
         )
       })}
+    </div>
+  )
+}
+
+/* ---------------- NOW (exception feed) ---------------- */
+function NowTab({ rounds, pairings, ballots }) {
+  useTick(1000)
+  const active = rounds.find(r => r.state !== 'locked' && r.state !== 'done')
+  const now = Date.now()
+
+  const exceptions = useMemo(() => {
+    const items = []
+    for (const p of pairings) {
+      const r = rounds.find(x => x.id === p.round_id)
+      if (!r) continue
+      const submitted = ballots.some(b => b.round_id === p.round_id && p.room === b.room)
+
+      // 1. Timer expired > 60s and still not submitted
+      if (p.segment && p.segment !== 'idle' && p.segment !== 'done' && p.segment_ends_at) {
+        const ends = new Date(p.segment_ends_at).getTime()
+        const over = Math.floor((now - ends) / 1000)
+        if (over > 60 && !submitted) {
+          items.push({ severity: 'red', code: `R${r.id.slice(1)}-${p.room}`,
+            room: p.room, round: p.round_id, judge: p.judge_code,
+            headline: `${p.segment} overdue by ${Math.floor(over/60)}m`,
+            detail: `${p.aff_code} vs ${p.opp_code}, judge ${p.judge_code}`,
+          })
+        }
+      }
+      // 2. Walkover flagged
+      if (p.absent_aff || p.absent_opp) {
+        items.push({ severity: 'amber', code: `WO-${p.room}`,
+          room: p.room, round: p.round_id, judge: p.judge_code,
+          headline: `${p.absent_aff ? p.aff_code : p.opp_code} absent — walkover`,
+          detail: `${r.id} Room #${p.room}`,
+        })
+      }
+      // 3. Round is done (state) but this room has no ballot
+      if (r.state === 'done' && !submitted && !(p.absent_aff || p.absent_opp)) {
+        items.push({ severity: 'red', code: `MISS-${p.room}`,
+          room: p.room, round: p.round_id, judge: p.judge_code,
+          headline: `Ballot missing after ${r.id} closed`,
+          detail: `Judge ${p.judge_code} · ${p.aff_code} vs ${p.opp_code}`,
+        })
+      }
+    }
+    // sort: red first, then amber; then by round & room
+    const order = { red: 0, amber: 1 }
+    return items.sort((a, b) => order[a.severity] - order[b.severity] || (a.round + a.room).localeCompare(b.round + b.room))
+  }, [pairings, ballots, rounds, now])
+
+  return (
+    <div className="now-tab">
+      <div className="now-hd">
+        <div className="now-hd-block">
+          <div className="k">Active</div>
+          <div className="v">{active ? `${active.id} · ${active.state}` : 'None'}</div>
+        </div>
+        <div className="now-hd-block">
+          <div className="k">Ballots in</div>
+          <div className="v">{ballots.length}<small> / 90</small></div>
+        </div>
+        <div className={`now-hd-block ${exceptions.filter(x => x.severity==='red').length ? 'urgent' : ''}`}>
+          <div className="k">Attention</div>
+          <div className="v">{exceptions.length}</div>
+        </div>
+      </div>
+
+      {exceptions.length === 0 ? (
+        <div className="portal-empty ok">
+          <b>✓ All rooms nominal.</b>
+          <span>No overdue timers, missing ballots, or absent scholars.</span>
+        </div>
+      ) : (
+        <div className="now-list">
+          {exceptions.map((x, i) => (
+            <div key={i} className={`now-item sev-${x.severity}`}>
+              <span className="ni-code">{x.code}</span>
+              <div className="ni-body">
+                <div className="ni-headline">{x.headline}</div>
+                <div className="ni-detail">{x.detail}</div>
+              </div>
+              <span className="ni-badge">{x.round} · Room #{x.room}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

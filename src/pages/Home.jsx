@@ -35,20 +35,27 @@ export default function Home() {
 
   return (
     <PublicShell>
-      <section className="home-hero">
-        <div className="landing-bg" aria-hidden="true">
-          <span className="blob b1" />
-          <span className="blob b2" />
-          <span className="blob b3" />
+      <section className="home-hero v2">
+        <div className="home-bg" aria-hidden="true">
+          <div className="home-grid" />
+          <img className="home-watermark" src="/assets/isomo.png" alt="" />
         </div>
 
         <div className="home-hero-inner">
           <div className="home-copy">
-            <span className="landing-kicker">House of Lords</span>
-            <h1>Dissecting Vision&nbsp;2050.</h1>
-            <p className="landing-lede">
-              Isomo Scholars' Debate. Five rounds, twenty‑five motions,
-              sixty voices interrogating Rwanda's next twenty‑five years.
+            <span className="landing-kicker">House of Lords &middot; 2026</span>
+
+            <div className="home-meta-bar">
+              <span>Saturday</span>
+              <span className="dot" />
+              <span>18 July 2026</span>
+              <span className="dot" />
+              <span>Kigali</span>
+            </div>
+
+            <h1 className="editorial-title">Dissecting Vision&nbsp;2050.</h1>
+            <p className="home-deck">
+              Five rounds. Twenty-five motions. Sixty voices interrogating Rwanda&rsquo;s next twenty-five years.
             </p>
 
             <ul className="landing-features">
@@ -67,18 +74,20 @@ export default function Home() {
             {err && <div className="landing-err">{err}</div>}
           </div>
 
-          <aside className="landing-card">
-            <div className="lc-head">
-              <span className="lc-kicker">Tournament</span>
-              <span className="lc-tag">Live 18 Jul</span>
+          <aside className="programme-card brackets">
+            <span className="br tl" /><span className="br tr" />
+            <span className="br bl" /><span className="br br" />
+            <div className="pc-head">
+              <span className="pc-kicker">Programme No. 01 / 2026</span>
+              <span className="pc-tag">18 JUL</span>
             </div>
-            <div className="lc-grid">
-              <div><div className="lc-v">5</div><div className="lc-k">Rounds</div></div>
-              <div><div className="lc-v">25</div><div className="lc-k">Motions</div></div>
-              <div><div className="lc-v">60</div><div className="lc-k">Speakers</div></div>
-              <div><div className="lc-v">30</div><div className="lc-k">Judges</div></div>
+            <div className="pc-grid">
+              <div className="pc-cell"><div className="pc-v">5</div><div className="pc-k">Rounds</div></div>
+              <div className="pc-cell"><div className="pc-v">25</div><div className="pc-k">Motions</div></div>
+              <div className="pc-cell"><div className="pc-v">60</div><div className="pc-k">Speakers</div></div>
+              <div className="pc-cell"><div className="pc-v">30</div><div className="pc-k">Judges</div></div>
             </div>
-            <div className="lc-foot">
+            <div className="pc-foot">
               <span>Format</span>
               <b>IPDA Impromptu &middot; 59 min / round</b>
             </div>
