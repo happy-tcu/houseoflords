@@ -9,6 +9,26 @@ const VENUES = [
   { n: 5, name: 'Amphitheatre',             role: 'Final · awards · closing',                  tag: 'Final',   ll: [-2.0355843358685246, 30.383417694093897] },
 ]
 
+// Haversine distance in metres.
+function haversine([lat1, lng1], [lat2, lng2]) {
+  const R = 6371000
+  const toRad = d => d * Math.PI / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(a))
+}
+// Straight-line × path-factor / walking-speed (m/s).
+function walkMinutes(fromLL, toLL) {
+  const straight = haversine(fromLL, toLL)
+  const walking  = straight * 1.3        // paths meander
+  const speed    = 1.34                  // ~4.8 km/h comfortable pace
+  return Math.max(1, Math.round(walking / speed / 60))
+}
+const START = VENUES[0].ll
+const WALK_FROM_1 = VENUES.map(v => v.n === 1 ? 0 : walkMinutes(START, v.ll))
+
 function loadLeaflet() {
   if (typeof window === 'undefined') return Promise.resolve(null)
   if (window.L) return Promise.resolve(window.L)
@@ -51,14 +71,15 @@ export default function VenuePage() {
       const map = L.map(mapRef.current, {
         scrollWheelZoom: true, zoomControl: true, attributionControl: true,
       })
-      // Satellite basemap + labels overlay (Esri World Imagery + Esri Reference).
+      // Satellite basemap: Esri covers deep zoom in Rwanda up to ~z18.
+      // maxNativeZoom lets Leaflet upscale beyond native so we never render "no data".
       const satellite = L.tileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 19, attribution: 'Imagery © Esri, Maxar, Earthstar Geographics' }
+        { maxZoom: 21, maxNativeZoom: 18, attribution: 'Imagery © Esri, Maxar, Earthstar Geographics' }
       )
       const labels = L.tileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 19, opacity: 0.9, attribution: '' }
+        { maxZoom: 21, maxNativeZoom: 16, opacity: 0.9, attribution: '' }
       )
       const streets = L.tileLayer(
         'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -91,7 +112,7 @@ export default function VenuePage() {
         markers.push(m)
       }
       const group = L.featureGroup(markers)
-      map.fitBounds(group.getBounds().pad(0.25))
+      map.fitBounds(group.getBounds().pad(0.25), { maxZoom: 17 })
       mapInstance.current = map
       setTimeout(() => map.invalidateSize(), 120)
     })
@@ -140,12 +161,17 @@ export default function VenuePage() {
           <div className="venue-map-wrap">
             <div ref={mapRef} id="venue-map" role="img" aria-label="Interactive map of ASYV showing five venues" />
             <div className="venue-map-legend">
-              {VENUES.map(v => (
+              {VENUES.map((v, i) => (
                 <div key={v.n} className={`venue-row tag-${v.tag.toLowerCase()}`}>
                   <span className="venue-num">{v.n}</span>
                   <div className="venue-body">
                     <span className="venue-name">{v.name}</span>
                     <span className="venue-role">{v.role}</span>
+                    <span className="venue-walk">
+                      {v.n === 1
+                        ? 'Start here'
+                        : `~${WALK_FROM_1[i]} min walk from ①`}
+                    </span>
                   </div>
                   <span className={`venue-tag ${v.tag.toLowerCase()}`}>{v.tag}</span>
                 </div>

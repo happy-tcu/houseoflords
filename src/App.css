@@ -2672,6 +2672,12 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
   font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 10px;
   letter-spacing: 1.8px; text-transform: uppercase; color: rgba(43,44,45,0.6);
 }
+.venue-walk {
+  margin-top: 4px;
+  font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+  font-weight: 600; font-size: 14px;
+  color: var(--brand-green-2, #7ab332);
+}
 .venue-tag {
   font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 9px;
   letter-spacing: 1.5px; text-transform: uppercase;
