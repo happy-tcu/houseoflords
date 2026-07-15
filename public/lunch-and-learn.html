@@ -328,6 +328,39 @@
   }
   .cover .meta span { color: var(--green-2); margin: 0 8px; }
 
+  /* Two-column balanced tips (slide 8) */
+  .two-col {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 40px;
+    margin-top: 24px;
+  }
+  .tc-block {
+    background: var(--panel); border: 1px solid var(--line);
+    border-top: 4px solid var(--green);
+    padding: 28px 30px;
+  }
+  .tc-hd {
+    font-family: var(--ui); font-weight: 800; font-size: 12px;
+    letter-spacing: 2.5px; text-transform: uppercase; color: var(--green-2);
+    padding-bottom: 14px; margin-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .tips { list-style: none; padding: 0; margin: 0; }
+  .tips li {
+    position: relative;
+    padding: 12px 0 12px 24px;
+    border-bottom: 1px dashed var(--line);
+    font-family: var(--body); font-size: 16px; line-height: 1.55; color: var(--dark);
+  }
+  .tips li:last-child { border-bottom: none; }
+  .tips li::before {
+    content: ""; position: absolute; left: 0; top: 20px;
+    width: 8px; height: 8px; background: var(--green);
+  }
+  .tips li b {
+    font-family: var(--ui); font-weight: 800; color: var(--dark);
+    margin-right: 4px;
+  }
+
   /* Two-color side markers for slide 4 */
   .sides { display: flex; gap: 20px; margin-top: 20px; }
   .side-box {
@@ -541,26 +574,24 @@
         <span class="meta">07 · During your speech + CX</span>
       </div>
       <img class="watermark" src="/assets/isomo.png" alt="">
-      <div class="sides">
-        <div class="side-box aff">
-          <div class="role">PROP</div>
-          <div class="desc">You argue for the motion.</div>
+      <h2>When it's your turn to speak.</h2>
+      <div class="two-col">
+        <div class="tc-block">
+          <div class="tc-hd">While you're speaking</div>
+          <ul class="tips">
+            <li><b>Signpost.</b> Say &ldquo;my first argument… my second… my third.&rdquo; Judges write faster than they think.</li>
+            <li><b>One point per minute.</b> Anything more and nobody remembers.</li>
+            <li><b>Land the line.</b> Your last sentence is what the judge writes down.</li>
+          </ul>
         </div>
-        <div class="side-box opp">
-          <div class="role">OPP</div>
-          <div class="desc">You argue against the motion.</div>
+        <div class="tc-block">
+          <div class="tc-hd">In cross-examination</div>
+          <ul class="tips">
+            <li><b>Short questions.</b> If your question has &ldquo;and&rdquo; in it, cut it in half.</li>
+            <li><b>Don&rsquo;t argue in the question</b> — use their <em>answer</em>.</li>
+            <li><b>Stay standing, stay steady.</b> CX rewards composure, not volume.</li>
+          </ul>
         </div>
-      </div>
-      <h2 style="font-size:36px; margin-top:36px;">While you're speaking:</h2>
-      <div class="bullets">
-        <div class="bullet"><span></span><span><b>Signpost.</b> &ldquo;My first argument… my second… my third.&rdquo; Judges write faster than they think.</span></div>
-        <div class="bullet"><span></span><span><b>One point per minute.</b> Anything more and nobody remembers.</span></div>
-        <div class="bullet"><span></span><span><b>Land the line.</b> Your last sentence is what the judge writes down.</span></div>
-      </div>
-      <h2 style="font-size:36px; margin-top:24px;">In cross-ex:</h2>
-      <div class="bullets">
-        <div class="bullet"><span></span><span><b>Short questions.</b> If your question has &ldquo;and&rdquo; in it, cut it in half.</span></div>
-        <div class="bullet"><span></span><span><b>Don&rsquo;t argue in the question</b> — use their <em>answer</em>.</span></div>
       </div>
       <div class="slide-ft"><span>Signpost · shorten · land</span><span class="tag">Slide 8 / 10</span></div>
     </section>
