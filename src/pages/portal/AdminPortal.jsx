@@ -59,6 +59,7 @@ export default function AdminPortal() {
           ['standings','Standings'],
           ['broadcast','Announcements'],
           ['certs',   'Certificates'],
+          ['regs',    'Registrations'],
           ['whitelist','Roster'],
         ].map(([k, l]) => (
           <button key={k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>
@@ -76,6 +77,7 @@ export default function AdminPortal() {
       {tab === 'standings' && <StandingsTab pairings={pairings || []} ballots={ballots || []} />}
       {tab === 'broadcast' && <BroadcastTab announcements={announcements || []} onMsg={setMsg} />}
       {tab === 'certs'     && <CertificatesTab onMsg={setMsg} />}
+      {tab === 'regs'      && <RegistrationsTab onMsg={setMsg} />}
       {tab === 'whitelist' && <WhitelistTab onMsg={setMsg} />}
     </PortalShell>
   )
@@ -648,6 +650,145 @@ async function sendInviteEmail(u) {
     if (data?.error) return { ok: false, error: data.error }
     return { ok: true }
   } catch (e) { return { ok: false, error: String(e?.message ?? e) } }
+}
+
+/* ---------------- REGISTRATIONS ---------------- */
+function RegistrationsTab({ onMsg }) {
+  const { rows: regs } = useRealtime('registrations',
+    { order: { column: 'submitted_at', ascending: false } }, [])
+  const { rows: speakers } = useRealtime('registration_speakers', {}, [])
+  const [expanded, setExpanded] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  const speakersByReg = useMemo(() => {
+    const m = {}
+    for (const s of speakers || []) (m[s.registration_id] ||= []).push(s)
+    for (const k of Object.keys(m)) m[k].sort((a, b) => a.order_index - b.order_index)
+    return m
+  }, [speakers])
+
+  async function setStatus(id, status) {
+    setBusy(true)
+    const { error } = await supabase.from('registrations')
+      .update({ status, reviewed_at: new Date().toISOString() })
+      .eq('id', id)
+    setBusy(false)
+    if (error) onMsg?.(`Error: ${error.message}`)
+    else onMsg?.(`Registration ${status}`)
+  }
+
+  async function remove(id) {
+    if (!confirm('Delete this registration? Cannot be undone.')) return
+    setBusy(true)
+    const { error } = await supabase.from('registrations').delete().eq('id', id)
+    setBusy(false)
+    if (error) onMsg?.(`Error: ${error.message}`)
+    else onMsg?.('Registration deleted')
+  }
+
+  function exportCsv() {
+    const rows = [['Class', 'School', 'Cohort', 'Captain', 'Email', 'Phone', 'Status', 'Speakers', 'Submitted', 'Notes']]
+    for (const r of regs || []) {
+      const list = (speakersByReg[r.id] || [])
+        .map(s => `${s.speaker_name}${s.speaker_email ? ` <${s.speaker_email}>` : ''}${s.speaker_year ? ` [${s.speaker_year}]` : ''}`)
+        .join(' | ')
+      rows.push([
+        r.class_name, r.school_name || '', r.cohort || '',
+        r.captain_name, r.captain_email, r.captain_phone || '',
+        r.status, list, r.submitted_at, r.notes || ''
+      ])
+    }
+    const csv = rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `registrations_${new Date().toISOString().slice(0, 10)}.csv`
+    a.click(); URL.revokeObjectURL(url)
+  }
+
+  const counts = useMemo(() => {
+    const c = { total: 0, pending: 0, approved: 0, waitlisted: 0, declined: 0, speakers: 0 }
+    for (const r of regs || []) {
+      c.total++
+      c[r.status] = (c[r.status] || 0) + 1
+      c.speakers += (speakersByReg[r.id] || []).length
+    }
+    return c
+  }, [regs, speakersByReg])
+
+  return (
+    <>
+      <div className="portal-stat-row">
+        <Stat k="Classes" v={counts.total} />
+        <Stat k="Speakers" v={counts.speakers} />
+        <Stat k="Pending" v={counts.pending || 0} />
+        <Stat k="Approved" v={counts.approved || 0} />
+      </div>
+      <div className="bracket-actions">
+        <button className="btn-secondary" onClick={exportCsv} disabled={!regs?.length}>Export CSV</button>
+      </div>
+      {(!regs || regs.length === 0) ? (
+        <div className="portal-empty"><b>No registrations yet.</b><span>Public /register form feeds this list in real-time.</span></div>
+      ) : (
+        <div className="regs-list">
+          {regs.map(r => {
+            const list = speakersByReg[r.id] || []
+            const isOpen = expanded === r.id
+            return (
+              <div key={r.id} className={`reg-item status-${r.status}`}>
+                <div className="reg-item-head" onClick={() => setExpanded(isOpen ? null : r.id)}>
+                  <div className="reg-item-main">
+                    <div className="reg-item-class">{r.class_name}</div>
+                    <div className="reg-item-meta">
+                      {r.school_name && <span>{r.school_name}</span>}
+                      {r.cohort && <span className="tag">{r.cohort.toUpperCase()}</span>}
+                      <span>{list.length} speaker{list.length === 1 ? '' : 's'}</span>
+                      <span>{new Date(r.submitted_at).toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <div className="reg-item-right">
+                    <span className={`reg-status reg-status-${r.status}`}>{r.status}</span>
+                    <span className="reg-chev">{isOpen ? '▲' : '▼'}</span>
+                  </div>
+                </div>
+                {isOpen && (
+                  <div className="reg-item-body">
+                    <div className="reg-item-captain">
+                      <div><b>Captain</b> {r.captain_name}</div>
+                      <div><a href={`mailto:${r.captain_email}`}>{r.captain_email}</a></div>
+                      {r.captain_phone && <div><a href={`tel:${r.captain_phone}`}>{r.captain_phone}</a></div>}
+                    </div>
+                    <table className="fmt-table reg-speakers-table">
+                      <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Year</th></tr></thead>
+                      <tbody>
+                        {list.map((s, i) => (
+                          <tr key={s.id}>
+                            <td>{i + 1}</td>
+                            <td>{s.speaker_name}</td>
+                            <td>{s.speaker_email || '—'}</td>
+                            <td>{s.speaker_phone || '—'}</td>
+                            <td>{s.speaker_year || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {r.notes && <div className="reg-item-notes"><b>Notes.</b> {r.notes}</div>}
+                    <div className="reg-item-actions">
+                      <button className="btn-primary" onClick={() => setStatus(r.id, 'approved')} disabled={busy || r.status === 'approved'}>Approve</button>
+                      <button className="btn-secondary" onClick={() => setStatus(r.id, 'waitlisted')} disabled={busy || r.status === 'waitlisted'}>Waitlist</button>
+                      <button className="btn-secondary" onClick={() => setStatus(r.id, 'declined')} disabled={busy || r.status === 'declined'}>Decline</button>
+                      <button className="btn-secondary" onClick={() => setStatus(r.id, 'pending')} disabled={busy || r.status === 'pending'}>Reset</button>
+                      <button className="btn-danger" onClick={() => remove(r.id)} disabled={busy}>Delete</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </>
+  )
 }
 
 function WhitelistTab({ onMsg }) {

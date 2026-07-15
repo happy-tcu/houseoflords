@@ -4,6 +4,7 @@ import { useAuth } from '../lib/auth'
 // Info tabs (public — everyone sees these).
 const INFO_TABS = [
   { to: '/',            label: 'Home' },
+  { to: '/register',    label: 'Register',   primary: true },
   { to: '/motions',     label: 'Motions' },
   { to: '/assignments', label: 'Team Assignments' },
   { to: '/format',      label: 'Format' },
@@ -45,7 +46,9 @@ export default function PublicShell({ children }) {
                 key={t.to}
                 to={t.to}
                 end={t.to === '/'}
-                className={({ isActive }) => isActive ? 'active' : ''}
+                className={({ isActive }) =>
+                  [isActive ? 'active' : '', t.primary ? 'primary' : ''].filter(Boolean).join(' ')
+                }
               >{t.label}</NavLink>
             ))}
           </nav>
