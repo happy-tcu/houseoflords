@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <style>
   :root {
     --green:  #8cc63e; --green-2: #7ab332;
@@ -359,6 +361,61 @@
     font-weight: 400; margin: 0 10px; transform: translateY(-1px);
   }
 
+  /* Map slide */
+  .map-wrap {
+    display: grid; grid-template-columns: 1.35fr 1fr; gap: 28px;
+    align-items: stretch; margin-top: 20px;
+  }
+  #asyv-map {
+    height: 460px; border: 1.5px solid var(--dark);
+    background: #eee;
+    box-shadow: 6px 6px 0 var(--dark);
+  }
+  .leaflet-container { font-family: var(--body) !important; }
+  .venue-legend {
+    display: flex; flex-direction: column; gap: 12px;
+    max-height: 460px; overflow-y: auto;
+  }
+  .venue-row {
+    display: grid; grid-template-columns: 40px 1fr auto; gap: 12px;
+    align-items: center; padding: 10px 14px;
+    border: 1.5px solid var(--dark); background: var(--panel);
+  }
+  .venue-num {
+    width: 32px; height: 32px; border-radius: 999px;
+    background: var(--dark); color: var(--cream);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--ui); font-weight: 800; font-size: 14px;
+  }
+  .venue-body { display: flex; flex-direction: column; gap: 2px; }
+  .venue-name { font-family: var(--ui); font-weight: 800; font-size: 14px; color: var(--dark); }
+  .venue-role {
+    font-family: var(--ui); font-weight: 700; font-size: 10px;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--slate);
+  }
+  .venue-tag {
+    font-family: var(--ui); font-weight: 800; font-size: 9px;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 4px 8px; border: 1.5px solid;
+  }
+  .venue-tag.prelim   { color: var(--blue);    border-color: var(--blue); }
+  .venue-tag.lunch    { color: var(--orange);  border-color: var(--orange); }
+  .venue-tag.quarter  { color: var(--green-2); border-color: var(--green-2); }
+  .venue-tag.final    { color: #7c5cff;        border-color: #7c5cff; }
+  /* Custom leaflet pin */
+  .pin {
+    width: 32px; height: 32px; border-radius: 999px;
+    background: var(--dark); color: var(--cream);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--ui); font-weight: 800; font-size: 14px;
+    border: 2px solid var(--cream); box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  @media (max-width: 900px) {
+    .map-wrap { grid-template-columns: 1fr; }
+    #asyv-map { height: 340px; }
+    .venue-legend { max-height: none; }
+  }
+
   /* Two-column balanced tips (slide 8) */
   .two-col {
     display: grid; grid-template-columns: 1fr 1fr; gap: 40px;
@@ -472,7 +529,7 @@
         <div class="stat-inline"><div class="v">60</div><div class="k">Speakers</div></div>
         <div class="stat-inline"><div class="v">30</div><div class="k">Judges</div></div>
       </div>
-      <div class="slide-ft"><span>Isomo · House of Lords</span><span class="tag">Slide 2 / 10</span></div>
+      <div class="slide-ft"><span>Isomo · House of Lords</span><span class="tag">Slide 2 / 11</span></div>
     </section>
 
     <!-- SLIDE 3 · Day timeline -->
@@ -492,14 +549,70 @@
         <div class="tl-row showcase"><span class="tl-time">3:56 → 4:55</span><span class="tl-label">R5 · Final</span><span class="tl-dur">59 min</span></div>
         <div class="tl-row ceremony"><span class="tl-time">4:55 → 5:55</span><span class="tl-label">Awards + closing</span><span class="tl-dur">60 min</span></div>
       </div>
-      <div class="slide-ft"><span>Timings are hard — move on the minute</span><span class="tag">Slide 3 / 10</span></div>
+      <div class="slide-ft"><span>Timings are hard — move on the minute</span><span class="tag">Slide 3 / 11</span></div>
     </section>
 
-    <!-- SLIDE 4 · Format 1v1 + Striking -->
+    <!-- SLIDE 4 · The village (map) -->
+    <section class="slide">
+      <div class="slide-hd">
+        <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">Venue</span></div>
+        <span class="meta">03 · ASYV · Rubona · ~1hr east of Kigali</span>
+      </div>
+      <h2>The village.</h2>
+      <p class="deck-p">One campus, five venues. Prelims in the school; quarters in the family houses; final under the dome.</p>
+      <div class="map-wrap">
+        <div id="asyv-map" role="img" aria-label="Aerial map of ASYV with five venue pins"></div>
+        <div class="venue-legend">
+          <div class="venue-row">
+            <span class="venue-num">1</span>
+            <div class="venue-body">
+              <span class="venue-name">Liquidnet HS · East Wing</span>
+              <span class="venue-role">Check-in · drop-off · R1–R3</span>
+            </div>
+            <span class="venue-tag prelim">Prelim</span>
+          </div>
+          <div class="venue-row">
+            <span class="venue-num">2</span>
+            <div class="venue-body">
+              <span class="venue-name">Dining Hall</span>
+              <span class="venue-role">Balcony rooms · lunch · Vision 2050 Wall</span>
+            </div>
+            <span class="venue-tag lunch">Lunch</span>
+          </div>
+          <div class="venue-row">
+            <span class="venue-num">3</span>
+            <div class="venue-body">
+              <span class="venue-name">Green House</span>
+              <span class="venue-role">Quarterfinal room A</span>
+            </div>
+            <span class="venue-tag quarter">Quarter</span>
+          </div>
+          <div class="venue-row">
+            <span class="venue-num">4</span>
+            <div class="venue-body">
+              <span class="venue-name">Orange House</span>
+              <span class="venue-role">Quarterfinal room B</span>
+            </div>
+            <span class="venue-tag quarter">Quarter</span>
+          </div>
+          <div class="venue-row">
+            <span class="venue-num">5</span>
+            <div class="venue-body">
+              <span class="venue-name">Amphitheatre</span>
+              <span class="venue-role">Final · awards · closing</span>
+            </div>
+            <span class="venue-tag final">Final</span>
+          </div>
+        </div>
+      </div>
+      <div class="slide-ft"><span>One campus · five venues</span><span class="tag">Slide 4 / 11</span></div>
+    </section>
+
+    <!-- SLIDE 5 · Format 1v1 + Striking -->
     <section class="slide">
       <div class="slide-hd">
         <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">Format</span></div>
-        <span class="meta">03 · IPDA Impromptu · 1 vs 1</span>
+        <span class="meta">04 · IPDA Impromptu · 1 vs 1</span>
       </div>
       <img class="watermark" src="/assets/isomo.png" alt="">
       <h2>1 vs 1. Five motions. You strike them down.</h2>
@@ -521,14 +634,14 @@
           <div class="strike-row final"><span class="n">5</span><span class="text"><b>THBT Rwanda&rsquo;s future will be written by those who did not wait to be asked.</b></span><span class="badge debate">Debate this</span></div>
         </div>
       </div>
-      <div class="slide-ft"><span>The one that survives is yours</span><span class="tag">Slide 4 / 10</span></div>
+      <div class="slide-ft"><span>The one that survives is yours</span><span class="tag">Slide 5 / 11</span></div>
     </section>
 
-    <!-- SLIDE 5 · Timing map -->
+    <!-- SLIDE 6 · Timing map -->
     <section class="slide">
       <div class="slide-hd">
         <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">Timing</span></div>
-        <span class="meta">04 · 59 minutes, timed to the second</span>
+        <span class="meta">05 · 59 minutes, timed to the second</span>
       </div>
       <img class="watermark" src="/assets/isomo.png" alt="">
       <h2>Every second is measured.</h2>
@@ -561,14 +674,14 @@
           </p>
         </div>
       </div>
-      <div class="slide-ft"><span>Hard time · no exceptions</span><span class="tag">Slide 5 / 10</span></div>
+      <div class="slide-ft"><span>Hard time · no exceptions</span><span class="tag">Slide 6 / 11</span></div>
     </section>
 
-    <!-- SLIDE 6 · Scoring -->
+    <!-- SLIDE 7 · Scoring -->
     <section class="slide">
       <div class="slide-hd">
         <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">Scoring</span></div>
-        <span class="meta">05 · How judges decide</span>
+        <span class="meta">06 · How judges decide</span>
       </div>
       <img class="watermark" src="/assets/isomo.png" alt="">
       <h2>Four axes. One winner.</h2>
@@ -582,14 +695,14 @@
       <p class="lede" style="margin-top:28px;">
         Tiebreakers: <b>wins first</b>, then total points. Top 4 across the prelims advance to the quarters. Quarter winners advance to the final by wins + speaker points.
       </p>
-      <div class="slide-ft"><span>/20 per speaker · binary winner</span><span class="tag">Slide 6 / 10</span></div>
+      <div class="slide-ft"><span>/20 per speaker · binary winner</span><span class="tag">Slide 7 / 11</span></div>
     </section>
 
-    <!-- SLIDE 7 · How to prep in 30 min -->
+    <!-- SLIDE 8 · How to prep in 30 min -->
     <section class="slide">
       <div class="slide-hd">
         <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">Prep</span></div>
-        <span class="meta">06 · What to actually do in 30 minutes</span>
+        <span class="meta">07 · What to actually do in 30 minutes</span>
       </div>
       <img class="watermark" src="/assets/isomo.png" alt="">
       <h2>Your 30-min prep recipe.</h2>
@@ -600,14 +713,14 @@
         <div class="step"><div class="n">4</div><div class="body"><b>3 min · Predict their three attacks.</b> Write your first-line rebuttal for each.</div></div>
         <div class="step"><div class="n">5</div><div class="body"><b>15 min · Rehearse the constructive out loud.</b> Not in your head. Time yourself. Land the last line.</div></div>
       </div>
-      <div class="slide-ft"><span>Silence in your head ≠ silence on the floor</span><span class="tag">Slide 7 / 10</span></div>
+      <div class="slide-ft"><span>Silence in your head ≠ silence on the floor</span><span class="tag">Slide 8 / 11</span></div>
     </section>
 
-    <!-- SLIDE 8 · In-speech + CX -->
+    <!-- SLIDE 9 · In-speech + CX -->
     <section class="slide">
       <div class="slide-hd">
         <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">In the room</span></div>
-        <span class="meta">07 · During your speech + CX</span>
+        <span class="meta">08 · During your speech + CX</span>
       </div>
       <img class="watermark" src="/assets/isomo.png" alt="">
       <h2>When it's your turn to speak.</h2>
@@ -629,14 +742,14 @@
           </ul>
         </div>
       </div>
-      <div class="slide-ft"><span>Signpost · shorten · land</span><span class="tag">Slide 8 / 10</span></div>
+      <div class="slide-ft"><span>Signpost · shorten · land</span><span class="tag">Slide 9 / 11</span></div>
     </section>
 
-    <!-- SLIDE 9 · Common mistakes -->
+    <!-- SLIDE 10 · Common mistakes -->
     <section class="slide">
       <div class="slide-hd">
         <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">Don&rsquo;ts</span></div>
-        <span class="meta">08 · What loses rounds on day one</span>
+        <span class="meta">09 · What loses rounds on day one</span>
       </div>
       <img class="watermark" src="/assets/isomo.png" alt="">
       <h2 class="editorial">These lose rounds. Every time.</h2>
@@ -646,14 +759,14 @@
         <div class="step" style="border-left-color:#e74c3c;"><div class="n" style="color:#c0392b;">3</div><div class="body"><b>Running out mid-sentence at STOP.</b> Time your closing to land at 0:15, not 0:00.</div></div>
         <div class="step" style="border-left-color:#e74c3c;"><div class="n" style="color:#c0392b;">4</div><div class="body"><b>Ignoring their strongest argument.</b> Judges notice. Address it, even if briefly.</div></div>
       </div>
-      <div class="slide-ft"><span>Presence &gt; polish · answer &gt; ignore</span><span class="tag">Slide 9 / 10</span></div>
+      <div class="slide-ft"><span>Presence &gt; polish · answer &gt; ignore</span><span class="tag">Slide 10 / 11</span></div>
     </section>
 
-    <!-- SLIDE 10 · The app + logistics -->
+    <!-- SLIDE 11 · The app + logistics -->
     <section class="slide">
       <div class="slide-hd">
         <div class="slide-brand"><img src="/assets/isomo.png" alt=""><span class="pill">The app</span></div>
-        <span class="meta">09 · Everything is in one place</span>
+        <span class="meta">10 · Everything is in one place</span>
       </div>
       <img class="watermark" src="/assets/isomo.png" alt="">
       <div class="split" style="align-items:center;">
@@ -671,7 +784,7 @@
           <div class="p" style="margin-top:20px;">Bookmark it now. Test the sign-in tonight.<br>If it doesn't work Saturday morning, ping an organizer immediately.</div>
         </div>
       </div>
-      <div class="slide-ft"><span>See you Saturday</span><span class="tag">Slide 10 / 10</span></div>
+      <div class="slide-ft"><span>See you Saturday</span><span class="tag">Slide 11 / 11</span></div>
     </section>
   </div>
 
@@ -705,14 +818,14 @@
   if (btnPrev) btnPrev.addEventListener('click', (e) => { e.stopPropagation(); prev() })
   if (btnNext) btnNext.addEventListener('click', (e) => { e.stopPropagation(); next() })
   document.addEventListener('click', (e) => {
-    if (e.target.closest('a,button,input,select,textarea,.deck-nav')) return
+    if (e.target.closest('a,button,input,select,textarea,.deck-nav,.leaflet-container,#asyv-map')) return
     const x = e.clientX, w = window.innerWidth
     if (x > w * 0.6) next(); else if (x < w * 0.4) prev()
   })
   // Swipe support (touch)
   let touchX = null, touchY = null
   document.addEventListener('touchstart', (e) => {
-    if (e.target.closest('a,button,input,select,textarea,.deck-nav')) { touchX = null; return }
+    if (e.target.closest('a,button,input,select,textarea,.deck-nav,.leaflet-container,#asyv-map')) { touchX = null; return }
     const t = e.changedTouches[0]; touchX = t.clientX; touchY = t.clientY
   }, { passive: true })
   document.addEventListener('touchend', (e) => {
@@ -728,6 +841,49 @@
   const initial = parseInt(location.hash.slice(1)) - 1
   if (!isNaN(initial) && initial >= 0 && initial < slides.length) go(initial)
   else go(0)
+
+  // ASYV map (Leaflet + Esri satellite tiles). Coords are approximate — refine after site walk.
+  let __asyvMap = null
+  function initMap() {
+    if (typeof L === 'undefined' || !document.getElementById('asyv-map')) return
+    if (__asyvMap) return
+    const VENUES = [
+      { n: 1, name: 'Liquidnet HS · East Wing', role: 'Check-in · Prelims R1–R3',   ll: [-2.02780, 30.37680] },
+      { n: 2, name: 'Dining Hall',              role: 'Lunch · balcony prelims',     ll: [-2.02815, 30.37700] },
+      { n: 3, name: 'Green House',              role: 'Quarterfinal room A',         ll: [-2.02870, 30.37760] },
+      { n: 4, name: 'Orange House',             role: 'Quarterfinal room B',         ll: [-2.02895, 30.37780] },
+      { n: 5, name: 'Amphitheatre',             role: 'Final · awards · closing',    ll: [-2.02955, 30.37750] },
+    ]
+    __asyvMap = L.map('asyv-map', { scrollWheelZoom: false, zoomControl: true, attributionControl: true })
+                 .setView([-2.02870, 30.37730], 17)
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles © Esri, Maxar, Earthstar Geographics'
+    }).addTo(__asyvMap)
+    for (const v of VENUES) {
+      const icon = L.divIcon({
+        className: 'pin-wrap',
+        html: '<div class="pin">' + v.n + '</div>',
+        iconSize: [32, 32], iconAnchor: [16, 16]
+      })
+      L.marker(v.ll, { icon }).addTo(__asyvMap)
+        .bindPopup('<b>' + v.n + '. ' + v.name + '</b><br>' + v.role)
+    }
+  }
+  if (document.readyState === 'complete') initMap()
+  else window.addEventListener('load', initMap)
+  // Watch the map slide's visibility so Leaflet re-measures when it becomes active
+  const mapEl = document.getElementById('asyv-map')
+  if (mapEl) {
+    const mapSlide = mapEl.closest('.slide')
+    if (mapSlide) {
+      new MutationObserver(() => {
+        if (mapSlide.classList.contains('active') && __asyvMap) {
+          setTimeout(() => __asyvMap.invalidateSize(), 120)
+        }
+      }).observe(mapSlide, { attributes: true, attributeFilter: ['class'] })
+    }
+  }
 </script>
 </body>
 </html>
