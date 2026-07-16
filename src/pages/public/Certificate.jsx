@@ -36,6 +36,16 @@ export default function Certificate() {
   const placement = useMemo(() => derivePlacement(code, rows), [code, rows])
   const meta = PLACEMENTS[placement.key] || PLACEMENTS.participant
 
+  // For judges: how many rounds did they adjudicate? Each round = ~1 hour of judging.
+  const judgeStats = useMemo(() => {
+    if (meta.key !== 'judge') return null
+    const myRooms = rows.pairings.filter(p => p.judge_code === code)
+    const rounds = myRooms.filter(p =>
+      rows.ballots.some(b => b.round_id === p.round_id && b.room === p.room)
+    ).length
+    return { rounds, hours: rounds }   // 59-min rounds → round up to hours
+  }, [code, meta.key, rows])
+
   const { rows: requests } = useRealtime(
     'certificate_requests',
     code ? { eq: { code } } : null,
@@ -124,6 +134,14 @@ export default function Certificate() {
                 {code && (
                   <span className="cv-code">
                     {meta.key === 'judge' ? 'Judge Code' : 'Scholar Code'} · {code}
+                    {meta.key === 'judge' && judgeStats && judgeStats.rounds > 0 && (
+                      <>
+                        {' · '}
+                        {judgeStats.rounds} round{judgeStats.rounds === 1 ? '' : 's'}
+                        {' · '}
+                        {judgeStats.hours} hr{judgeStats.hours === 1 ? '' : 's'} adjudicated
+                      </>
+                    )}
                   </span>
                 )}
 
