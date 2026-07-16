@@ -1,5 +1,6 @@
 import { NavLink, Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
+import FAQCard from './FAQCard'
 
 // Info tabs (public — everyone sees these).
 const INFO_TABS = [
@@ -75,6 +76,7 @@ export default function PublicShell({ children }) {
           <span className="tag-line">What can we do now, with what we have?</span>
         </div>
       </footer>
+      <FAQCard />
     </div>
   )
 }

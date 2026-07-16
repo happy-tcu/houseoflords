@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import Announcements from './Announcements'
+import FAQCard from './FAQCard'
 
 const ROLE_TITLES = {
   admin:   'Admin Console.',
@@ -63,6 +64,7 @@ export default function PortalShell({ title, subtitle, children }) {
         </div>
       </main>
       <Announcements />
+      <FAQCard />
     </div>
   )
 }
