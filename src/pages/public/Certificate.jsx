@@ -113,13 +113,19 @@ export default function Certificate() {
               <div className="cv-inner">
                 <img className="cv-logo" src="/assets/isomo.png" alt="Isomo" />
 
-                <div className="cv-event">House of Lords · Scholars' Debate</div>
+                <div className="cv-event">
+                  House of Lords · {meta.key === 'judge' ? 'Judging Panel' : "Scholars' Debate"}
+                </div>
                 <div className="cv-title">{meta.title}</div>
                 <div className="cv-subtitle">{meta.subtitle}</div>
 
                 <div className="cv-presented">This certificate is presented to</div>
                 <div className="cv-name">{name || 'Full Name'}</div>
-                {code && <span className="cv-code">Scholar Code · {code}</span>}
+                {code && (
+                  <span className="cv-code">
+                    {meta.key === 'judge' ? 'Judge Code' : 'Scholar Code'} · {code}
+                  </span>
+                )}
 
                 <p className="cv-citation">{meta.citation}</p>
 
