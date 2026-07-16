@@ -36,10 +36,13 @@ function RoleRouter() {
   return <Navigate to="/unauthorized" replace />
 }
 
+import ConnectionBanner from './components/ConnectionBanner'
+
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <ConnectionBanner />
         <Routes>
           {/* Public */}
           <Route path="/"            element={<Home />} />

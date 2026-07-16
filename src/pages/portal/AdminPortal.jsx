@@ -331,6 +331,13 @@ function RoomCard({ pairing, roundMotions, ballot, hasDraft, allJudges }) {
     const { error } = await supabase.rpc('reassign_judge', { p_pairing: pairing.id, p_new_judge: newJ.trim() })
     if (error) alert(error.message)
   }
+  async function recordForfeit(side) {
+    const winner = side === 'aff' ? pairing.opp_code : pairing.aff_code
+    const loser  = side === 'aff' ? pairing.aff_code : pairing.opp_code
+    if (!confirm(`Record forfeit ballot for Room #${pairing.room}?\n\n${loser} = 0/20 (forfeit)\n${winner} = 13/20 (walkover)\nWinner: ${winner}\n\nThis writes a ballot so the round can close.`)) return
+    const { error } = await supabase.rpc('mark_forfeit', { p_pairing_id: pairing.id, p_forfeit_side: side })
+    if (error) alert(error.message)
+  }
 
   return (
     <div className={`rm-card rm-${stage}`}>
@@ -355,6 +362,11 @@ function RoomCard({ pairing, roundMotions, ballot, hasDraft, allJudges }) {
           <span className="tag" style={{background: finalMotion.kind === 'Policy' ? '#1dafec' : finalMotion.kind === 'Value' ? '#efb34a' : '#8cc63e'}}>{finalMotion.kind}</span>
           <span className="rm-motion-text">{finalMotion.text}</span>
         </div>
+      )}
+      {!finished && (pairing.absent_aff || pairing.absent_opp) && (
+        <button className="rm-forfeit" onClick={() => recordForfeit(pairing.absent_aff ? 'aff' : 'opp')}>
+          Record forfeit ballot →
+        </button>
       )}
     </div>
   )
@@ -676,12 +688,15 @@ function RegistrationsTab({ onMsg }) {
       const { data: speakerList, error } = await supabase.rpc('approve_team_registration', { p_reg_id: id })
       if (error) { setBusy(false); onMsg?.(`Error: ${error.message}`); return }
       const targets = (speakerList || []).filter(s => s.speaker_email)
-      const results = await Promise.allSettled(targets.map(s =>
-        supabase.functions.invoke('send-invite', {
+      // Sequential with a 150ms gap (~6/sec) to stay under Resend's 10/sec free-tier limit.
+      let ok = 0
+      for (const s of targets) {
+        const { data, error: mailErr } = await supabase.functions.invoke('send-invite', {
           body: { email: s.speaker_email, role: 'scholar', code: s.speaker_code, name: s.speaker_name }
         })
-      ))
-      const ok = results.filter(r => r.status === 'fulfilled' && !r.value?.error).length
+        if (!mailErr && !data?.error) ok++
+        await new Promise(res => setTimeout(res, 150))
+      }
       setBusy(false)
       onMsg?.(`Team approved · ${ok}/${targets.length} invite emails sent`)
       return
