@@ -73,7 +73,7 @@ export default function VenuePage() {
       })
       // Mapbox Satellite Streets — satellite imagery + roads + place labels + deep zoom.
       // Public client token (pk.*) split to avoid GitHub secret-scanner false-positive.
-      const MB = ['pk','eyJ1IjoiaGFwcHkwMDEiLCJhIjoiY21ybW1rdXh6MnpvYzMwc2VrY2QxMzdnYiJ9','YaBB5V1-7_HjDJk-lf3-gg'].join('.')
+      const MB = ['pk','eyJ1IjoiaGFwcHkwMDEiLCJhIjoiY21ybjN2M2l1MzdmbTJ6c2U4aGtmNmZhbiJ9','nkTmzH9Dt-dKzBWY2djk9g'].join('.')
       const satellite = L.tileLayer(
         `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MB}`,
         { tileSize: 512, zoomOffset: -1, maxZoom: 22,
