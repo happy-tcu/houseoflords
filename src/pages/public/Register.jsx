@@ -25,6 +25,7 @@ function useCountdown(target) {
 
 export default function RegisterPage() {
   const { closed, d, h, m } = useCountdown(DEADLINE)
+  const [mode, setMode] = useState('team')   // 'team' | 'judge'
 
   const [step, setStep] = useState('form')   // 'form' | 'saving' | 'done' | 'error'
   const [error, setError] = useState(null)
@@ -105,26 +106,52 @@ export default function RegisterPage() {
         </div>
         <div className="hero-inner">
           <div className="meta-bar">
-            <span>Captains</span>
+            <span>{mode === 'team' ? 'Captains' : 'Judges'}</span>
             <span className="dot" />
-            <span>One form per class</span>
+            <span>{mode === 'team' ? 'One form per class' : 'One form per judge'}</span>
             <span className="dot" />
             <span>Deadline: Fri 17 Jul · noon CAT</span>
           </div>
-          <span className="kicker">Team Registration</span>
-          <h1>Send us your speakers.</h1>
+          <span className="kicker">{mode === 'team' ? 'Team Registration' : 'Judge Registration'}</span>
+          <h1>{mode === 'team' ? 'Send us your speakers.' : 'Judge the day.'}</h1>
           <div className="subtitle">
-            Class captains — this is the door in.
+            {mode === 'team' ? 'Class captains — this is the door in.' : 'Volunteer to judge — you\'ll get a room and three rounds.'}
           </div>
           <p className="lede">
-            One captain per class fills the form below with their squad. Minimum two speakers.
-            Once the deadline hits, pairings lock and the bracket is drawn from what we have.
+            {mode === 'team'
+              ? 'One captain per class fills the form below with their squad. Exactly ten speakers per class. Once the deadline hits, pairings lock and the bracket is drawn from what we have.'
+              : 'Judges keep time, score speakers, and submit ballots. Sign up individually — you\'ll be approved and assigned a room code after review.'}
           </p>
         </div>
       </section>
 
-      {step === 'done' ? (
+      <div className="reg-mode-switch">
+        <div className="container">
+          <div className="reg-mode-tabs">
+            <button
+              className={`reg-mode-tab ${mode === 'team' ? 'active' : ''}`}
+              onClick={() => { setMode('team'); setStep('form'); setError(null) }}
+              type="button">
+              <span className="reg-mode-kicker">01</span>
+              <span className="reg-mode-name">Register a class</span>
+              <span className="reg-mode-sub">Captain submits their squad of ten</span>
+            </button>
+            <button
+              className={`reg-mode-tab ${mode === 'judge' ? 'active' : ''}`}
+              onClick={() => { setMode('judge'); setStep('form'); setError(null) }}
+              type="button">
+              <span className="reg-mode-kicker">02</span>
+              <span className="reg-mode-name">Register as a judge</span>
+              <span className="reg-mode-sub">Individual signup · admin approves</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {step === 'done' && mode === 'team' ? (
         <SuccessCard regId={regId} classLetter={classLetter} teamName={teamName} count={filledSpeakers.length} />
+      ) : mode === 'judge' ? (
+        <JudgeForm closed={closed} d={d} h={h} m={m} />
       ) : (
         <>
           <DeadlineBanner closed={closed} d={d} h={h} m={m} />
@@ -306,5 +333,143 @@ function SuccessCard({ regId, classLetter, teamName, count }) {
         </div>
       </div>
     </section>
+  )
+}
+
+function JudgeForm({ closed, d, h, m }) {
+  const [step, setStep] = useState('form')
+  const [error, setError] = useState(null)
+  const [regId, setRegId] = useState(null)
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [org, setOrg] = useState('')
+  const [exp, setExp] = useState('')
+  const [canAttend, setCanAttend] = useState(false)
+  const [notes, setNotes] = useState('')
+
+  const canSubmit = fullName.trim() && /\S+@\S+\.\S+/.test(email) && canAttend && !closed
+
+  async function submit(e) {
+    e?.preventDefault?.()
+    if (!canSubmit || step === 'saving') return
+    setStep('saving'); setError(null)
+    const { data, error } = await supabase.rpc('submit_judge_registration', {
+      p_full_name: fullName.trim(),
+      p_email: email.trim().toLowerCase(),
+      p_phone: phone.trim() || null,
+      p_organization: org.trim() || null,
+      p_experience: exp || null,
+      p_can_attend: canAttend,
+      p_notes: notes.trim() || null,
+    })
+    if (error) { setStep('error'); setError(error.message || 'Something went wrong.'); return }
+    setRegId(data); setStep('done')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  if (step === 'done') {
+    return (
+      <section className="block">
+        <div className="container">
+          <div className="reg-success">
+            <div className="reg-success-tick" aria-hidden>✓</div>
+            <span className="kicker">Registered</span>
+            <h2>You're on the list.</h2>
+            <div className="reg-success-body">
+              <div className="reg-success-row"><span className="k">Name</span><b>{fullName}</b></div>
+              <div className="reg-success-row"><span className="k">Email</span><b>{email}</b></div>
+              <div className="reg-success-row"><span className="k">Reference</span><code>{regId?.slice(0, 8)}</code></div>
+            </div>
+            <p className="reg-success-note">
+              An organizer will review your registration and email you a judge code within 24 hours.
+              After approval you'll receive login instructions and details for Judges' Training Session 1
+              (Fri 17 Jul, 8:00 p.m. via Zoom).
+            </p>
+            <a className="reg-success-cta" href="/judging">See the judging rubric →</a>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <>
+      <DeadlineBanner closed={closed} d={d} h={h} m={m} />
+      <form className="reg-form" onSubmit={submit}>
+        <div className="container">
+          <fieldset className="reg-sec">
+            <legend>
+              <span className="reg-sec-num">01</span>
+              <span className="reg-sec-title">About you</span>
+            </legend>
+            <div className="reg-grid three">
+              <label className="reg-field">
+                <span className="reg-label">Full name *</span>
+                <input type="text" required value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Your full name" />
+              </label>
+              <label className="reg-field">
+                <span className="reg-label">Email *</span>
+                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" />
+              </label>
+              <label className="reg-field">
+                <span className="reg-label">Phone (WhatsApp)</span>
+                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+250 …" />
+              </label>
+              <label className="reg-field span-2">
+                <span className="reg-label">Organization / affiliation</span>
+                <input type="text" value={org} onChange={e => setOrg(e.target.value)} placeholder="e.g. Isomo · TCU · IDebate Rwanda" />
+              </label>
+              <label className="reg-field">
+                <span className="reg-label">Debate experience</span>
+                <select value={exp} onChange={e => setExp(e.target.value)}>
+                  <option value="">— Select —</option>
+                  <option value="none">None — will train</option>
+                  <option value="some">Some — a few tournaments</option>
+                  <option value="experienced">Experienced — coach / veteran</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset className="reg-sec">
+            <legend>
+              <span className="reg-sec-num">02</span>
+              <span className="reg-sec-title">Availability</span>
+            </legend>
+            <label className="reg-checkbox">
+              <input type="checkbox" checked={canAttend} onChange={e => setCanAttend(e.target.checked)} />
+              <span>
+                <b>I can attend Saturday 18 July 2026, 10:30 – 19:00 CAT</b>
+                <em>Held at ASYV (Rwamagana · Ntunga). Includes lunch. Judges' training session Fri 17 Jul 8pm via Zoom.</em>
+              </span>
+            </label>
+          </fieldset>
+
+          <fieldset className="reg-sec">
+            <legend>
+              <span className="reg-sec-num">03</span>
+              <span className="reg-sec-title">Anything else?</span>
+              <span className="reg-sec-hint">Optional</span>
+            </legend>
+            <label className="reg-field">
+              <span className="reg-label">Notes for the organizers</span>
+              <textarea rows={4} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Prior judging, accessibility needs, questions..." />
+            </label>
+          </fieldset>
+
+          {error && <div className="reg-error">{error}</div>}
+
+          <div className="reg-submit-bar">
+            <div className="reg-count">
+              <b>Judge:</b> {fullName || '—'} · {canAttend ? 'available' : 'availability required'}
+            </div>
+            <button type="submit" className="reg-submit" disabled={!canSubmit || step === 'saving'}>
+              {step === 'saving' ? 'Submitting…' : closed ? 'Registration closed' : 'Submit judge registration'}
+            </button>
+          </div>
+        </div>
+      </form>
+    </>
   )
 }

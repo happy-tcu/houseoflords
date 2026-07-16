@@ -2762,3 +2762,64 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232b2c2d'><path d='M12 2L2 8l10 6 10-6-10-6zm0 8L2 16l10 6 10-6-10-6z'/></svg>") !important;
   background-size: 20px 20px !important;
 }
+
+/* Register mode tabs (Team | Judge) */
+.reg-mode-switch { background: #fff; padding: 32px 0 0; }
+.reg-mode-tabs {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  border-bottom: 1.5px solid rgba(43,44,45,0.14); padding-bottom: 24px;
+}
+@media (max-width: 700px) {
+  .reg-mode-tabs { grid-template-columns: 1fr; }
+}
+.reg-mode-tab {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  padding: 22px 24px; cursor: pointer;
+  background: #fff;
+  border: 1.5px solid rgba(43,44,45,0.28);
+  text-align: left;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+.reg-mode-tab:hover { border-color: var(--brand-dark, #2b2c2d); }
+.reg-mode-tab.active {
+  border-color: var(--brand-dark, #2b2c2d);
+  background: var(--cream, #fbf7ee);
+  box-shadow: 4px 4px 0 var(--brand-dark, #2b2c2d);
+  transform: translate(-1px, -1px);
+}
+.reg-mode-kicker {
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 10px; letter-spacing: 2.5px; color: var(--brand-green-2, #7ab332);
+}
+.reg-mode-name {
+  font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+  font-weight: 700; font-size: 26px; color: var(--brand-dark, #2b2c2d);
+  line-height: 1.1;
+}
+.reg-mode-sub {
+  font-family: 'Open Sans', sans-serif; font-size: 13px;
+  color: rgba(43,44,45,0.7);
+}
+
+/* Judge availability checkbox */
+.reg-checkbox {
+  display: grid; grid-template-columns: 28px 1fr; gap: 14px; align-items: start;
+  padding: 20px 24px;
+  background: var(--cream, #fbf7ee);
+  border: 1.5px solid var(--brand-dark, #2b2c2d);
+  cursor: pointer;
+}
+.reg-checkbox input[type="checkbox"] {
+  width: 22px; height: 22px; margin: 2px 0 0; cursor: pointer;
+  accent-color: var(--brand-green, #8cc63e);
+}
+.reg-checkbox b {
+  display: block;
+  font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 15px;
+  color: var(--brand-dark, #2b2c2d);
+  margin-bottom: 4px;
+}
+.reg-checkbox em {
+  font-family: 'Open Sans', sans-serif; font-style: italic; font-size: 13px;
+  color: rgba(43,44,45,0.7);
+}

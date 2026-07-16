@@ -59,7 +59,8 @@ export default function AdminPortal() {
           ['standings','Standings'],
           ['broadcast','Announcements'],
           ['certs',   'Certificates'],
-          ['regs',    'Registrations'],
+          ['regs',    'Teams'],
+          ['judgeregs','Judges'],
           ['whitelist','Roster'],
         ].map(([k, l]) => (
           <button key={k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>
@@ -78,6 +79,7 @@ export default function AdminPortal() {
       {tab === 'broadcast' && <BroadcastTab announcements={announcements || []} onMsg={setMsg} />}
       {tab === 'certs'     && <CertificatesTab onMsg={setMsg} />}
       {tab === 'regs'      && <RegistrationsTab onMsg={setMsg} />}
+      {tab === 'judgeregs' && <JudgeRegistrationsTab onMsg={setMsg} />}
       {tab === 'whitelist' && <WhitelistTab onMsg={setMsg} />}
     </PortalShell>
   )
@@ -669,6 +671,22 @@ function RegistrationsTab({ onMsg }) {
 
   async function setStatus(id, status) {
     setBusy(true)
+    if (status === 'approved') {
+      // Approve → upsert speakers into allowed_users AND email each one.
+      const { data: speakerList, error } = await supabase.rpc('approve_team_registration', { p_reg_id: id })
+      if (error) { setBusy(false); onMsg?.(`Error: ${error.message}`); return }
+      // Fire branded emails in parallel; ignore individual failures but report count.
+      const targets = (speakerList || []).filter(s => s.speaker_email)
+      const results = await Promise.allSettled(targets.map(s =>
+        supabase.functions.invoke('send-invite', {
+          body: { email: s.speaker_email, role: 'scholar', code: s.speaker_code, name: s.speaker_name }
+        })
+      ))
+      const ok = results.filter(r => r.status === 'fulfilled' && !r.value?.error).length
+      setBusy(false)
+      onMsg?.(`Team approved · ${ok}/${targets.length} invite emails sent`)
+      return
+    }
     const { error } = await supabase.from('registrations')
       .update({ status, reviewed_at: new Date().toISOString() })
       .eq('id', id)
@@ -777,6 +795,113 @@ function RegistrationsTab({ onMsg }) {
                     {r.notes && <div className="reg-item-notes"><b>Notes.</b> {r.notes}</div>}
                     <div className="reg-item-actions">
                       <button className="btn-primary" onClick={() => setStatus(r.id, 'approved')} disabled={busy || r.status === 'approved'}>Approve</button>
+                      <button className="btn-secondary" onClick={() => setStatus(r.id, 'waitlisted')} disabled={busy || r.status === 'waitlisted'}>Waitlist</button>
+                      <button className="btn-secondary" onClick={() => setStatus(r.id, 'declined')} disabled={busy || r.status === 'declined'}>Decline</button>
+                      <button className="btn-secondary" onClick={() => setStatus(r.id, 'pending')} disabled={busy || r.status === 'pending'}>Reset</button>
+                      <button className="btn-danger" onClick={() => remove(r.id)} disabled={busy}>Delete</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </>
+  )
+}
+
+/* ---------------- JUDGE REGISTRATIONS ---------------- */
+function JudgeRegistrationsTab({ onMsg }) {
+  const { rows: regs } = useRealtime('judge_registrations',
+    { order: { column: 'submitted_at', ascending: false } }, [])
+  const [expanded, setExpanded] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  async function approve(id) {
+    setBusy(true)
+    const { data, error } = await supabase.rpc('approve_judge_registration', { p_reg_id: id })
+    if (error) { setBusy(false); onMsg?.(`Error: ${error.message}`); return }
+    const j = (data || [])[0]
+    if (!j) { setBusy(false); onMsg?.('Approved but no data returned'); return }
+    const { error: emailErr } = await supabase.functions.invoke('send-invite', {
+      body: { email: j.judge_email, role: 'judge', code: j.assigned_code, name: j.judge_name }
+    })
+    setBusy(false)
+    if (emailErr) onMsg?.(`Approved as ${j.assigned_code}, email failed: ${emailErr.message}`)
+    else onMsg?.(`Approved as ${j.assigned_code} · invite email sent`)
+  }
+
+  async function setStatus(id, status) {
+    setBusy(true)
+    const { error } = await supabase.from('judge_registrations')
+      .update({ status, reviewed_at: new Date().toISOString() })
+      .eq('id', id)
+    setBusy(false)
+    if (error) onMsg?.(`Error: ${error.message}`)
+    else onMsg?.(`Judge ${status}`)
+  }
+
+  async function remove(id) {
+    if (!confirm('Delete this judge registration? Cannot be undone.')) return
+    setBusy(true)
+    const { error } = await supabase.from('judge_registrations').delete().eq('id', id)
+    setBusy(false)
+    if (error) onMsg?.(`Error: ${error.message}`)
+    else onMsg?.('Judge registration deleted')
+  }
+
+  const counts = useMemo(() => {
+    const c = { total: 0, pending: 0, approved: 0, waitlisted: 0, declined: 0 }
+    for (const r of regs || []) { c.total++; c[r.status] = (c[r.status] || 0) + 1 }
+    return c
+  }, [regs])
+
+  return (
+    <>
+      <div className="portal-stat-row">
+        <Stat k="Judges" v={counts.total} />
+        <Stat k="Pending" v={counts.pending || 0} />
+        <Stat k="Approved" v={counts.approved || 0} />
+        <Stat k="Waitlisted" v={counts.waitlisted || 0} />
+      </div>
+      {(!regs || regs.length === 0) ? (
+        <div className="portal-empty"><b>No judge registrations yet.</b><span>Public /register (Judge tab) feeds this list in real-time.</span></div>
+      ) : (
+        <div className="regs-list">
+          {regs.map(r => {
+            const isOpen = expanded === r.id
+            return (
+              <div key={r.id} className={`reg-item status-${r.status}`}>
+                <div className="reg-item-head" onClick={() => setExpanded(isOpen ? null : r.id)}>
+                  {r.assigned_code && <div className="reg-item-badge">{r.assigned_code}</div>}
+                  <div className="reg-item-main">
+                    <div className="reg-item-class">{r.full_name}</div>
+                    <div className="reg-item-meta">
+                      {r.organization && <span>{r.organization}</span>}
+                      {r.experience && <span className="tag">{r.experience.toUpperCase()}</span>}
+                      <span>{r.email}</span>
+                      <span>{new Date(r.submitted_at).toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <div className="reg-item-right">
+                    <span className={`reg-status reg-status-${r.status}`}>{r.status}</span>
+                    <span className="reg-chev">{isOpen ? '▲' : '▼'}</span>
+                  </div>
+                </div>
+                {isOpen && (
+                  <div className="reg-item-body">
+                    <div className="reg-item-captain">
+                      <div><b>Email</b> <a href={`mailto:${r.email}`}>{r.email}</a></div>
+                      {r.phone && <div><b>Phone</b> <a href={`tel:${r.phone}`}>{r.phone}</a></div>}
+                      <div><b>Can attend</b> {r.can_attend ? 'Yes' : 'No'}</div>
+                    </div>
+                    {r.notes && <div className="reg-item-notes"><b>Notes.</b> {r.notes}</div>}
+                    <div className="reg-item-actions">
+                      <button className="btn-primary" onClick={() => approve(r.id)}
+                        disabled={busy || r.status === 'approved'}>
+                        {r.status === 'approved' ? `Approved · ${r.assigned_code}` : 'Approve & email'}
+                      </button>
                       <button className="btn-secondary" onClick={() => setStatus(r.id, 'waitlisted')} disabled={busy || r.status === 'waitlisted'}>Waitlist</button>
                       <button className="btn-secondary" onClick={() => setStatus(r.id, 'declined')} disabled={busy || r.status === 'declined'}>Decline</button>
                       <button className="btn-secondary" onClick={() => setStatus(r.id, 'pending')} disabled={busy || r.status === 'pending'}>Reset</button>
