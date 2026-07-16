@@ -675,7 +675,6 @@ function RegistrationsTab({ onMsg }) {
       // Approve → upsert speakers into allowed_users AND email each one.
       const { data: speakerList, error } = await supabase.rpc('approve_team_registration', { p_reg_id: id })
       if (error) { setBusy(false); onMsg?.(`Error: ${error.message}`); return }
-      // Fire branded emails in parallel; ignore individual failures but report count.
       const targets = (speakerList || []).filter(s => s.speaker_email)
       const results = await Promise.allSettled(targets.map(s =>
         supabase.functions.invoke('send-invite', {
@@ -687,6 +686,34 @@ function RegistrationsTab({ onMsg }) {
       onMsg?.(`Team approved · ${ok}/${targets.length} invite emails sent`)
       return
     }
+
+    // Waitlist / Decline → email the CAPTAIN (not the whole team).
+    if (status === 'waitlisted' || status === 'declined') {
+      const reg = (regs || []).find(r => r.id === id)
+      const { error: updErr } = await supabase.from('registrations')
+        .update({ status, reviewed_at: new Date().toISOString() })
+        .eq('id', id)
+      if (updErr) { setBusy(false); onMsg?.(`Error: ${updErr.message}`); return }
+      if (reg?.captain_email) {
+        const { error: mailErr } = await supabase.functions.invoke('send-invite', {
+          body: {
+            email: reg.captain_email,
+            name: reg.captain_name,
+            kind: status === 'waitlisted' ? 'waitlist' : 'decline',
+            context: reg.team_name || reg.class_name || `Class ${reg.class_letter || ''}`.trim(),
+          }
+        })
+        setBusy(false)
+        if (mailErr) onMsg?.(`Set ${status}, email failed: ${mailErr.message}`)
+        else onMsg?.(`Team ${status} · captain notified`)
+      } else {
+        setBusy(false)
+        onMsg?.(`Team ${status} (no captain email on file)`)
+      }
+      return
+    }
+
+    // Reset / other → just update status silently.
     const { error } = await supabase.from('registrations')
       .update({ status, reviewed_at: new Date().toISOString() })
       .eq('id', id)
@@ -834,12 +861,27 @@ function JudgeRegistrationsTab({ onMsg }) {
 
   async function setStatus(id, status) {
     setBusy(true)
+    const reg = (regs || []).find(r => r.id === id)
     const { error } = await supabase.from('judge_registrations')
       .update({ status, reviewed_at: new Date().toISOString() })
       .eq('id', id)
+    if (error) { setBusy(false); onMsg?.(`Error: ${error.message}`); return }
+    if ((status === 'waitlisted' || status === 'declined') && reg?.email) {
+      const { error: mailErr } = await supabase.functions.invoke('send-invite', {
+        body: {
+          email: reg.email,
+          name: reg.full_name,
+          kind: status === 'waitlisted' ? 'waitlist' : 'decline',
+          context: 'Judging Panel',
+        }
+      })
+      setBusy(false)
+      if (mailErr) onMsg?.(`Set ${status}, email failed: ${mailErr.message}`)
+      else onMsg?.(`Judge ${status} · notified`)
+      return
+    }
     setBusy(false)
-    if (error) onMsg?.(`Error: ${error.message}`)
-    else onMsg?.(`Judge ${status}`)
+    onMsg?.(`Judge ${status}`)
   }
 
   async function remove(id) {

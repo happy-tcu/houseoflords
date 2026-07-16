@@ -49,12 +49,26 @@ serve(async (req) => {
     const role  = String(body.role || "").trim()
     const name  = String(body.name || "").trim()
     const code  = body.code ? String(body.code).trim() : ""
-    if (!email || !role) return json({ error: "email + role required" }, 400)
+    const kind  = String(body.kind || "invite").trim().toLowerCase()  // 'invite' | 'waitlist' | 'decline'
+    const context = String(body.context || "").trim()                  // e.g. team name, optional
+    if (!email) return json({ error: "email required" }, 400)
+    if (kind === "invite" && !role) return json({ error: "role required for invite" }, 400)
 
     // Send via Resend
-    const subject = `You're invited to House of Lords — ${role}`
-    const html = renderInviteHtml({ email, role, name, code })
-    const text = renderInviteText({ email, role, name, code })
+    let subject: string, html: string, text: string
+    if (kind === "waitlist") {
+      subject = "House of Lords — waitlisted"
+      html = renderWaitlistHtml({ email, name, context })
+      text = renderWaitlistText({ email, name, context })
+    } else if (kind === "decline") {
+      subject = "House of Lords — registration update"
+      html = renderDeclineHtml({ email, name, context })
+      text = renderDeclineText({ email, name, context })
+    } else {
+      subject = `You're invited to House of Lords — ${role}`
+      html = renderInviteHtml({ email, role, name, code })
+      text = renderInviteText({ email, role, name, code })
+    }
 
     const resp = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -74,9 +88,11 @@ serve(async (req) => {
       const errBody = await resp.text()
       return json({ error: `resend: ${resp.status} ${errBody}` }, 502)
     }
-    // Record invited_at
-    await supabase.from("allowed_users").update({ invited_at: new Date().toISOString() }).eq("email", email)
-    return json({ ok: true })
+    // Record invited_at (invite only; waitlist/decline don't grant portal access).
+    if (kind === "invite") {
+      await supabase.from("allowed_users").update({ invited_at: new Date().toISOString() }).eq("email", email)
+    }
+    return json({ ok: true, kind })
   } catch (e: any) {
     return json({ error: String(e?.message ?? e) }, 500)
   }
@@ -154,4 +170,103 @@ function renderInviteHtml({ email, role, name, code }: any) {
 
 function escapeHtml(s: string) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!))
+}
+
+/* ---------------- WAITLIST ---------------- */
+
+function renderWaitlistText({ email, name, context }: any) {
+  return `Hi ${name || email},
+
+Thanks for registering for House of Lords 2026${context ? ` (${context})` : ""}.
+
+You're currently on our waitlist. Slots are limited to six classes and thirty judges — if space opens up before Saturday, we'll email you immediately with next steps.
+
+Either way, we appreciate you stepping up.
+
+— Isomo · House of Lords`
+}
+
+function renderWaitlistHtml({ email, name, context }: any) {
+  const logoUrl = `${APP_URL}/assets/isomo.png`
+  return `<!doctype html>
+<html><body style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; background:#f7f8fa; padding:24px; margin:0;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px; margin:0 auto; background:#fff; border:1px solid #e6e8ec; border-radius:4px;">
+    <tr><td style="padding:28px 32px 20px 32px; border-bottom:6px solid #efb34a;">
+      <img src="${logoUrl}" alt="Isomo" width="120" style="display:block; height:auto;">
+      <div style="margin-top:14px; display:inline-block; padding:4px 10px; background:rgba(239,179,74,0.15); color:#a67628; font-size:10px; letter-spacing:2px; text-transform:uppercase; font-weight:800;">
+        House of Lords · Waitlist
+      </div>
+    </td></tr>
+    <tr><td style="padding:32px 32px 8px 32px;">
+      <div style="font-family:'Cormorant Garamond', Georgia, serif; font-style:italic; font-size:36px; font-weight:700; color:#2b2c2d; line-height:1.15;">
+        You're on the waitlist.
+      </div>
+    </td></tr>
+    <tr><td style="padding:14px 32px 8px 32px; color:#333; font-size:15px; line-height:1.6;">
+      <p style="margin:0 0 14px 0;">Hi ${escapeHtml(name || email.split('@')[0])},</p>
+      <p style="margin:0 0 14px 0;">
+        Thanks for registering for <b>House of Lords 2026</b>${context ? ` <span style="color:#6b7280;">(${escapeHtml(context)})</span>` : ""}.
+      </p>
+      <p style="margin:0 0 14px 0;">
+        Slots are limited &mdash; six classes on the floor, thirty judges in the rooms. You're currently on the waitlist. If space opens up before Saturday we'll email again with your login details and code.
+      </p>
+      <p style="margin:0 0 14px 0;">
+        Either way &mdash; thank you for stepping up.
+      </p>
+    </td></tr>
+    <tr><td style="padding:12px 32px 32px 32px; font-size:13px; color:#6b7280; line-height:1.55;">
+      Questions? Reply to this email or ping an organizer.
+    </td></tr>
+    <tr><td style="padding:16px 32px; border-top:1px solid #e6e8ec; background:#fbfcfd; font-size:10px; color:#6b7280; letter-spacing:1.5px; text-transform:uppercase; font-weight:700;">
+      <span style="color:#7ab332;">Isomo</span> &middot; Scholars' Debate &nbsp;&nbsp;|&nbsp;&nbsp; What can we do now, with what we have?
+    </td></tr>
+  </table>
+</body></html>`
+}
+
+/* ---------------- DECLINE ---------------- */
+
+function renderDeclineText({ email, name, context }: any) {
+  return `Hi ${name || email},
+
+Thanks for registering for House of Lords 2026${context ? ` (${context})` : ""}.
+
+We're unable to include you in this year's tournament roster. This isn't a reflection on you — we had far more submissions than slots. Isomo runs programming year-round, and we'd love to see you at the next opening.
+
+— Isomo · House of Lords`
+}
+
+function renderDeclineHtml({ email, name, context }: any) {
+  const logoUrl = `${APP_URL}/assets/isomo.png`
+  return `<!doctype html>
+<html><body style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; background:#f7f8fa; padding:24px; margin:0;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px; margin:0 auto; background:#fff; border:1px solid #e6e8ec; border-radius:4px;">
+    <tr><td style="padding:28px 32px 20px 32px; border-bottom:6px solid #2b2c2d;">
+      <img src="${logoUrl}" alt="Isomo" width="120" style="display:block; height:auto;">
+      <div style="margin-top:14px; display:inline-block; padding:4px 10px; background:rgba(43,44,45,0.08); color:#2b2c2d; font-size:10px; letter-spacing:2px; text-transform:uppercase; font-weight:800;">
+        House of Lords · Registration Update
+      </div>
+    </td></tr>
+    <tr><td style="padding:32px 32px 8px 32px;">
+      <div style="font-family:'Cormorant Garamond', Georgia, serif; font-style:italic; font-size:32px; font-weight:700; color:#2b2c2d; line-height:1.15;">
+        Not this year.
+      </div>
+    </td></tr>
+    <tr><td style="padding:14px 32px 8px 32px; color:#333; font-size:15px; line-height:1.6;">
+      <p style="margin:0 0 14px 0;">Hi ${escapeHtml(name || email.split('@')[0])},</p>
+      <p style="margin:0 0 14px 0;">
+        Thanks for registering for <b>House of Lords 2026</b>${context ? ` <span style="color:#6b7280;">(${escapeHtml(context)})</span>` : ""}.
+      </p>
+      <p style="margin:0 0 14px 0;">
+        We're unable to include you in this year's tournament roster. This isn't a reflection on you — we had far more submissions than slots.
+      </p>
+      <p style="margin:0 0 14px 0;">
+        Isomo runs programming year-round. Watch our channels for the next Circle, workshop, or open call.
+      </p>
+    </td></tr>
+    <tr><td style="padding:16px 32px; border-top:1px solid #e6e8ec; background:#fbfcfd; font-size:10px; color:#6b7280; letter-spacing:1.5px; text-transform:uppercase; font-weight:700;">
+      <span style="color:#7ab332;">Isomo</span> &middot; Scholars' Debate &nbsp;&nbsp;|&nbsp;&nbsp; What can we do now, with what we have?
+    </td></tr>
+  </table>
+</body></html>`
 }
