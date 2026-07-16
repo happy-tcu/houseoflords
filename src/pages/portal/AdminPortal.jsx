@@ -695,7 +695,7 @@ function RegistrationsTab({ onMsg }) {
         .eq('id', id)
       if (updErr) { setBusy(false); onMsg?.(`Error: ${updErr.message}`); return }
       if (reg?.captain_email) {
-        const { error: mailErr } = await supabase.functions.invoke('send-invite', {
+        const { data, error: mailErr } = await supabase.functions.invoke('send-invite', {
           body: {
             email: reg.captain_email,
             name: reg.captain_name,
@@ -704,8 +704,9 @@ function RegistrationsTab({ onMsg }) {
           }
         })
         setBusy(false)
-        if (mailErr) onMsg?.(`Set ${status}, email failed: ${mailErr.message}`)
-        else onMsg?.(`Team ${status} · captain notified`)
+        const funcErr = data?.error || mailErr?.message
+        if (funcErr) onMsg?.(`Set ${status}, email failed: ${funcErr}`)
+        else onMsg?.(`Team ${status} · captain notified (${reg.captain_email})`)
       } else {
         setBusy(false)
         onMsg?.(`Team ${status} (no captain email on file)`)
@@ -867,7 +868,7 @@ function JudgeRegistrationsTab({ onMsg }) {
       .eq('id', id)
     if (error) { setBusy(false); onMsg?.(`Error: ${error.message}`); return }
     if ((status === 'waitlisted' || status === 'declined') && reg?.email) {
-      const { error: mailErr } = await supabase.functions.invoke('send-invite', {
+      const { data, error: mailErr } = await supabase.functions.invoke('send-invite', {
         body: {
           email: reg.email,
           name: reg.full_name,
@@ -876,8 +877,9 @@ function JudgeRegistrationsTab({ onMsg }) {
         }
       })
       setBusy(false)
-      if (mailErr) onMsg?.(`Set ${status}, email failed: ${mailErr.message}`)
-      else onMsg?.(`Judge ${status} · notified`)
+      const funcErr = data?.error || mailErr?.message
+      if (funcErr) onMsg?.(`Set ${status}, email failed: ${funcErr}`)
+      else onMsg?.(`Judge ${status} · notified (${reg.email})`)
       return
     }
     setBusy(false)
