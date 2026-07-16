@@ -38,20 +38,17 @@ export default function RegisterPage() {
   const [captainPhone, setCaptainPhone] = useState('')
   const [cohort, setCohort] = useState('')
   const [notes, setNotes] = useState('')
-  const [speakers, setSpeakers] = useState([EMPTY_SPEAKER(), EMPTY_SPEAKER()])
-
-  // Speaker codes are constrained by the chosen class letter.
-  const usedCodes = useMemo(() => new Set(speakers.map(s => s.code).filter(Boolean)), [speakers])
-  const availableCodes = useMemo(
-    () => classLetter ? SLOTS.map(n => `${classLetter}${n}`) : [],
-    [classLetter]
+  // Exactly 10 speakers per class — codes auto-assigned by row index.
+  const [speakers, setSpeakers] = useState(
+    () => Array.from({ length: 10 }, () => EMPTY_SPEAKER())
   )
 
-  // If class letter changes, clear speaker codes that no longer match.
+  // When class letter is picked (or changes), auto-assign codes {letter}1..{letter}10 by row.
   useEffect(() => {
-    setSpeakers(prev => prev.map(s =>
-      s.code && classLetter && s.code.charAt(0) !== classLetter ? { ...s, code: '' } : s
-    ))
+    setSpeakers(prev => prev.map((s, i) => ({
+      ...s,
+      code: classLetter ? `${classLetter}${i + 1}` : '',
+    })))
   }, [classLetter])
 
   const filledSpeakers = useMemo(
@@ -61,26 +58,12 @@ export default function RegisterPage() {
 
   const canSubmit = classLetter && teamName.trim() && captainName.trim()
     && /\S+@\S+\.\S+/.test(captainEmail)
-    && filledSpeakers.length >= 2
-    && filledSpeakers.every(s => s.code)
+    && filledSpeakers.length === 10
     && !closed
 
   function updateSpeaker(i, field, val) {
     setSpeakers(s => s.map((x, ix) => ix === i ? { ...x, [field]: val } : x))
   }
-  function addSpeaker() {
-    if (speakers.length >= 10) return
-    // Auto-suggest first free code for this class.
-    const nextCode = classLetter
-      ? (SLOTS.map(n => `${classLetter}${n}`).find(c => !usedCodes.has(c)) || '')
-      : ''
-    setSpeakers(s => [...s, { ...EMPTY_SPEAKER(), code: nextCode }])
-  }
-  function removeSpeaker(i) {
-    if (speakers.length <= 2) return
-    setSpeakers(s => s.filter((_, ix) => ix !== i))
-  }
-
   async function submit(e) {
     e?.preventDefault?.()
     if (!canSubmit || step === 'saving') return
@@ -206,35 +189,22 @@ export default function RegisterPage() {
                   <span className="reg-sec-num">03</span>
                   <span className="reg-sec-title">The speakers</span>
                   <span className="reg-sec-hint">
-                    {classLetter ? `Codes ${classLetter}1–${classLetter}10` : 'Pick a class first'} · min 2 · max 10
+                    {classLetter ? `${classLetter}1 → ${classLetter}10 · all 10 required` : 'Pick a class first'}
                   </span>
                 </legend>
                 <div className="reg-speakers">
                   {speakers.map((s, i) => (
-                    <div key={i} className="reg-speaker">
+                    <div key={i} className="reg-speaker locked">
                       <div className="reg-speaker-code">
-                        <label className="reg-field">
-                          <span className="reg-label">Code{i < 2 ? ' *' : ''}</span>
-                          <select
-                            required={i < 2}
-                            value={s.code}
-                            onChange={e => updateSpeaker(i, 'code', e.target.value)}
-                            disabled={!classLetter}
-                          >
-                            <option value="">—</option>
-                            {availableCodes.map(c => (
-                              <option key={c} value={c}
-                                disabled={usedCodes.has(c) && c !== s.code}>
-                                {c}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
+                        <span className="reg-label">Code</span>
+                        <div className="reg-code-badge">
+                          {classLetter ? `${classLetter}${i + 1}` : '—'}
+                        </div>
                       </div>
                       <div className="reg-speaker-fields">
                         <label className="reg-field">
-                          <span className="reg-label">Full name{i < 2 ? ' *' : ''}</span>
-                          <input type="text" required={i < 2} value={s.name}
+                          <span className="reg-label">Full name *</span>
+                          <input type="text" required value={s.name}
                             onChange={e => updateSpeaker(i, 'name', e.target.value)}
                             placeholder="Speaker full name" />
                         </label>
@@ -261,15 +231,8 @@ export default function RegisterPage() {
                           </select>
                         </label>
                       </div>
-                      <button type="button" className="reg-remove"
-                        onClick={() => removeSpeaker(i)} disabled={speakers.length <= 2}
-                        aria-label={`Remove speaker ${i + 1}`}>×</button>
                     </div>
                   ))}
-                  <button type="button" className="reg-add" onClick={addSpeaker}
-                    disabled={speakers.length >= 10 || !classLetter}>
-                    + Add another speaker
-                  </button>
                 </div>
               </fieldset>
 
@@ -290,7 +253,7 @@ export default function RegisterPage() {
 
               <div className="reg-submit-bar">
                 <div className="reg-count">
-                  <b>{filledSpeakers.length}</b> speaker{filledSpeakers.length === 1 ? '' : 's'} · captain: <b>{captainName || '—'}</b>
+                  <b>{filledSpeakers.length}</b> / 10 speakers · captain: <b>{captainName || '—'}</b>
                 </div>
                 <button type="submit" className="reg-submit"
                   disabled={!canSubmit || step === 'saving'}>
@@ -332,7 +295,7 @@ function SuccessCard({ regId, classLetter, teamName, count }) {
           <div className="reg-success-body">
             <div className="reg-success-row"><span className="k">Class</span><b>Class {classLetter}</b></div>
             <div className="reg-success-row"><span className="k">Team</span><b>{teamName}</b></div>
-            <div className="reg-success-row"><span className="k">Speakers</span><b>{count} ({classLetter}1–{classLetter}{count})</b></div>
+            <div className="reg-success-row"><span className="k">Speakers</span><b>10 ({classLetter}1–{classLetter}10)</b></div>
             <div className="reg-success-row"><span className="k">Reference</span><code>{regId?.slice(0, 8)}</code></div>
           </div>
           <p className="reg-success-note">
