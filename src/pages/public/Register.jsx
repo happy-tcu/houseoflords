@@ -95,6 +95,15 @@ export default function RegisterPage() {
     setRegId(data)
     setStep('done')
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    // Fire confirmation to captain (best-effort — don't block success on it).
+    supabase.functions.invoke('send-invite', {
+      body: {
+        kind: 'confirm-team',
+        email: captainEmail.trim().toLowerCase(),
+        name: captainName.trim(),
+        context: `${teamName.trim()} · Class ${classLetter}`,
+      }
+    }).catch(() => {})
   }
 
   return (
@@ -366,6 +375,14 @@ function JudgeForm({ closed, d, h, m }) {
     if (error) { setStep('error'); setError(error.message || 'Something went wrong.'); return }
     setRegId(data); setStep('done')
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    // Fire confirmation to the judge (best-effort).
+    supabase.functions.invoke('send-invite', {
+      body: {
+        kind: 'confirm-judge',
+        email: email.trim().toLowerCase(),
+        name: fullName.trim(),
+      }
+    }).catch(() => {})
   }
 
   if (step === 'done') {

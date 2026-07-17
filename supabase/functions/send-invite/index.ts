@@ -34,24 +34,29 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     })
 
-    // Verify caller is an admin
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user?.email) return json({ error: "not authed" }, 401)
-    const { data: me } = await supabase
-      .from("allowed_users")
-      .select("role")
-      .eq("email", user.email.toLowerCase())
-      .maybeSingle()
-    if (me?.role !== "admin") return json({ error: "admin only" }, 403)
-
     const body = await req.json()
     const email = String(body.email || "").trim().toLowerCase()
     const role  = String(body.role || "").trim()
     const name  = String(body.name || "").trim()
     const code  = body.code ? String(body.code).trim() : ""
-    const kind  = String(body.kind || "invite").trim().toLowerCase()  // 'invite' | 'waitlist' | 'decline'
+    const kind  = String(body.kind || "invite").trim().toLowerCase()  // 'invite' | 'waitlist' | 'decline' | 'confirm-team' | 'confirm-judge'
     const context = String(body.context || "").trim()                  // e.g. team name, optional
     if (!email) return json({ error: "email required" }, 400)
+
+    // Public kinds (no auth required): only send our fixed templates, so blast radius is bounded.
+    const publicKinds = new Set(["confirm-team", "confirm-judge"])
+    if (!publicKinds.has(kind)) {
+      // Admin-only paths.
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user?.email) return json({ error: "not authed" }, 401)
+      const { data: me } = await supabase
+        .from("allowed_users")
+        .select("role")
+        .eq("email", user.email.toLowerCase())
+        .maybeSingle()
+      if (me?.role !== "admin") return json({ error: "admin only" }, 403)
+    }
+
     if (kind === "invite" && !role) return json({ error: "role required for invite" }, 400)
 
     // Send via Resend
@@ -64,6 +69,14 @@ serve(async (req) => {
       subject = "House of Lords — registration update"
       html = renderDeclineHtml({ email, name, context })
       text = renderDeclineText({ email, name, context })
+    } else if (kind === "confirm-team") {
+      subject = "House of Lords — registration received"
+      html = renderConfirmTeamHtml({ email, name, context })
+      text = renderConfirmTeamText({ email, name, context })
+    } else if (kind === "confirm-judge") {
+      subject = "House of Lords — judge registration received"
+      html = renderConfirmJudgeHtml({ email, name })
+      text = renderConfirmJudgeText({ email, name })
     } else {
       subject = `You're invited to House of Lords — ${role}`
       html = renderInviteHtml({ email, role, name, code })
