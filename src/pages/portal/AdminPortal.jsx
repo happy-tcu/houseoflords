@@ -123,7 +123,7 @@ function RoundsTab({ rounds, pairingsByRound, motionsByRound, ballotsByRound, on
     const { error } = await supabase.from('motions').insert(rows)
     if (error) onMsg(error.message); else onMsg(`Seeded ${rows.length} motions for ${rid}`)
   }
-  const ALL = ['R1','R2','R3','R4','R5']
+  const ALL = ['R0','R1','R2','R3','R4','R5']
   return (
     <div className="round-controls">
       {ALL.map(rid => {
