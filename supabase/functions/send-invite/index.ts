@@ -295,7 +295,7 @@ An organizer will review your submission shortly. Once approved, every speaker o
 
 Nothing to do right now. Watch your inbox — if there's an issue we'll reach out directly.
 
-Deadline for edits: Fri 17 Jul, 4:00 pm (CAT). After that, pairings lock.
+Deadline for edits: Fri 17 Jul, 7:00 pm (CAT). After that, pairings lock.
 
 — Isomo · House of Lords`
 }
@@ -328,7 +328,7 @@ function renderConfirmTeamHtml({ email, name, context }: any) {
         Nothing to do right now &mdash; if we spot an issue we'll reach out directly.
       </p>
       <p style="margin:14px 0 0 0; padding:10px 14px; background:#fbf7ee; border-left:3px solid #efb34a; font-size:14px;">
-        <b>Edits close:</b> Fri 17 Jul, 4:00 pm (CAT). After that, pairings lock.
+        <b>Edits close:</b> Fri 17 Jul, 7:00 pm (CAT). After that, pairings lock.
       </p>
     </td></tr>
     <tr><td style="padding:16px 32px; border-top:1px solid #e6e8ec; background:#fbfcfd; font-size:10px; color:#6b7280; letter-spacing:1.5px; text-transform:uppercase; font-weight:700;">
