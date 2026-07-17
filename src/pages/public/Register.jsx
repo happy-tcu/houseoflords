@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import PublicShell from '../../components/PublicShell'
 import { supabase } from '../../lib/supabase'
 
-const DEADLINE = new Date('2026-07-17T12:00:00+02:00') // Rwanda time (CAT)
+const DEADLINE = new Date('2026-07-17T16:00:00+02:00') // Rwanda time (CAT)
 
 const EMPTY_SPEAKER = () => ({ code: '', name: '', email: '', phone: '', year: '' })
 const CLASS_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
@@ -119,7 +119,7 @@ export default function RegisterPage() {
             <span className="dot" />
             <span>{mode === 'team' ? 'One form per class' : 'One form per judge'}</span>
             <span className="dot" />
-            <span>Deadline: Fri 17 Jul · noon CAT</span>
+            <span>Deadline: Fri 17 Jul · 4pm CAT</span>
           </div>
           <span className="kicker">{mode === 'team' ? 'Team Registration' : 'Judge Registration'}</span>
           <h1>{mode === 'team' ? 'Send us your speakers.' : 'Judge the day.'}</h1>
@@ -310,7 +310,7 @@ function DeadlineBanner({ closed, d, h, m }) {
       <div className="container reg-banner-inner">
         <span className="reg-banner-kicker">Deadline</span>
         <div className="reg-banner-body">
-          <b>Fri 17 Jul · 12:00 noon (CAT)</b>
+          <b>Fri 17 Jul · 4:00 pm (CAT)</b>
           {closed
             ? <span>Registration is now closed.</span>
             : <span>{d}d {h}h {m}m to submit your class.</span>}

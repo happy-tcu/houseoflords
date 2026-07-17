@@ -283,3 +283,107 @@ function renderDeclineHtml({ email, name, context }: any) {
   </table>
 </body></html>`
 }
+
+/* ---------------- CONFIRMATION (team) ---------------- */
+
+function renderConfirmTeamText({ email, name, context }: any) {
+  return `Hi ${name || email},
+
+We've received your House of Lords registration${context ? ` for ${context}` : ""}.
+
+An organizer will review your submission shortly. Once approved, every speaker on your team will get an email with their code (e.g. B3) and login instructions.
+
+Nothing to do right now. Watch your inbox — if there's an issue we'll reach out directly.
+
+Deadline for edits: Fri 17 Jul, 4:00 pm (CAT). After that, pairings lock.
+
+— Isomo · House of Lords`
+}
+
+function renderConfirmTeamHtml({ email, name, context }: any) {
+  const logoUrl = `${APP_URL}/assets/isomo.png`
+  return `<!doctype html>
+<html><body style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; background:#f7f8fa; padding:24px; margin:0;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px; margin:0 auto; background:#fff; border:1px solid #e6e8ec; border-radius:4px;">
+    <tr><td style="padding:28px 32px 20px 32px; border-bottom:6px solid #8cc63e;">
+      <img src="${logoUrl}" alt="Isomo" width="120" style="display:block; height:auto;">
+      <div style="margin-top:14px; display:inline-block; padding:4px 10px; background:rgba(140,198,62,0.15); color:#7ab332; font-size:10px; letter-spacing:2px; text-transform:uppercase; font-weight:800;">
+        House of Lords · Received
+      </div>
+    </td></tr>
+    <tr><td style="padding:32px 32px 8px 32px;">
+      <div style="font-family:'Cormorant Garamond', Georgia, serif; font-style:italic; font-size:38px; font-weight:700; color:#2b2c2d; line-height:1.1;">
+        We got it.
+      </div>
+    </td></tr>
+    <tr><td style="padding:14px 32px 8px 32px; color:#333; font-size:15px; line-height:1.6;">
+      <p style="margin:0 0 14px 0;">Hi ${escapeHtml(name || email.split('@')[0])},</p>
+      <p style="margin:0 0 14px 0;">
+        We've received your House of Lords registration${context ? ` for <b>${escapeHtml(context)}</b>` : ""}.
+      </p>
+      <p style="margin:0 0 14px 0;">
+        An organizer will review shortly. Once approved, <b>every speaker on your team</b> will get their own email with their code (e.g. B3) and login instructions.
+      </p>
+      <p style="margin:0 0 14px 0;">
+        Nothing to do right now &mdash; if we spot an issue we'll reach out directly.
+      </p>
+      <p style="margin:14px 0 0 0; padding:10px 14px; background:#fbf7ee; border-left:3px solid #efb34a; font-size:14px;">
+        <b>Edits close:</b> Fri 17 Jul, 4:00 pm (CAT). After that, pairings lock.
+      </p>
+    </td></tr>
+    <tr><td style="padding:16px 32px; border-top:1px solid #e6e8ec; background:#fbfcfd; font-size:10px; color:#6b7280; letter-spacing:1.5px; text-transform:uppercase; font-weight:700;">
+      <span style="color:#7ab332;">Isomo</span> &middot; Scholars' Debate &nbsp;&nbsp;|&nbsp;&nbsp; What can we do now, with what we have?
+    </td></tr>
+  </table>
+</body></html>`
+}
+
+/* ---------------- CONFIRMATION (judge) ---------------- */
+
+function renderConfirmJudgeText({ email, name }: any) {
+  return `Hi ${name || email},
+
+We've received your registration as a judge for House of Lords 2026.
+
+An organizer will review your submission and email you back with your J-code (e.g. J17) and login instructions. Once approved, you'll also get the link for Judges' Training Session 1 (Fri 17 Jul, 8:00 p.m. via Zoom).
+
+Nothing to do right now — watch your inbox.
+
+— Isomo · House of Lords`
+}
+
+function renderConfirmJudgeHtml({ email, name }: any) {
+  const logoUrl = `${APP_URL}/assets/isomo.png`
+  return `<!doctype html>
+<html><body style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; background:#f7f8fa; padding:24px; margin:0;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px; margin:0 auto; background:#fff; border:1px solid #e6e8ec; border-radius:4px;">
+    <tr><td style="padding:28px 32px 20px 32px; border-bottom:6px solid #1dafec;">
+      <img src="${logoUrl}" alt="Isomo" width="120" style="display:block; height:auto;">
+      <div style="margin-top:14px; display:inline-block; padding:4px 10px; background:rgba(29,175,236,0.15); color:#1189c1; font-size:10px; letter-spacing:2px; text-transform:uppercase; font-weight:800;">
+        House of Lords · Judge Application
+      </div>
+    </td></tr>
+    <tr><td style="padding:32px 32px 8px 32px;">
+      <div style="font-family:'Cormorant Garamond', Georgia, serif; font-style:italic; font-size:38px; font-weight:700; color:#2b2c2d; line-height:1.1;">
+        We got it.
+      </div>
+    </td></tr>
+    <tr><td style="padding:14px 32px 8px 32px; color:#333; font-size:15px; line-height:1.6;">
+      <p style="margin:0 0 14px 0;">Hi ${escapeHtml(name || email.split('@')[0])},</p>
+      <p style="margin:0 0 14px 0;">
+        Thanks for offering to judge <b>House of Lords 2026</b>. Your registration is in.
+      </p>
+      <p style="margin:0 0 14px 0;">
+        An organizer will review and email you back with your <b>J-code</b> (e.g. J17) and portal login.
+        Once approved you'll also receive the link for <b>Judges' Training Session 1</b> (Fri 17 Jul, 8:00 p.m. via Zoom).
+      </p>
+      <p style="margin:14px 0 0 0; padding:10px 14px; background:#fbf7ee; border-left:3px solid #1dafec; font-size:14px;">
+        Nothing to do right now &mdash; watch your inbox.
+      </p>
+    </td></tr>
+    <tr><td style="padding:16px 32px; border-top:1px solid #e6e8ec; background:#fbfcfd; font-size:10px; color:#6b7280; letter-spacing:1.5px; text-transform:uppercase; font-weight:700;">
+      <span style="color:#7ab332;">Isomo</span> &middot; Scholars' Debate &nbsp;&nbsp;|&nbsp;&nbsp; What can we do now, with what we have?
+    </td></tr>
+  </table>
+</body></html>`
+}
