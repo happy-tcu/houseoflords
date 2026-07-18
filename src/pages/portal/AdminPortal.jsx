@@ -2224,6 +2224,439 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
         )}
       </section>
 
+      {/* V2 ADDITIONS */}
+
+      {/* PER-SPEAKER PROP vs OPP BALANCE */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Prop vs Opp balance</h3><span>How often each top-10 speaker debated Prop vs Opp — did the draw favor anyone?</span></div>
+        <BarList items={top10Total.slice(0, 10).map(s => ({
+          label: `${s.code} · ${s.name || '—'}`,
+          value: s.propRounds,
+          max: s.propRounds + s.oppRounds,
+          sub: `${s.propRounds} Prop / ${s.oppRounds} Opp`,
+        }))} color="#1dafec" />
+      </section>
+
+      {/* CONSISTENCY INDEX (stddev) */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Steadiest speakers</h3><span>Lowest score variance across R1–R3 (top 10 by total, sorted by consistency)</span></div>
+        <BarList items={top10Total.slice().sort((a, b) => a.stddev - b.stddev).map(s => ({
+          label: `${s.code} · ${s.name || '—'}`,
+          value: +s.stddev.toFixed(2),
+          max: Math.max(...top10Total.map(x => x.stddev)) || 1,
+          sub: `avg ${s.avg.toFixed(1)}/20 · rounds: ${s.trajectory.map(t => t ?? '—').join('/')}`,
+        }))} color="#7c5cff" />
+      </section>
+
+      {/* POINT SPREAD DISTRIBUTION */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Room-margin distribution</h3><span>How lopsided were prelim rooms? (spread = |Prop – Opp|)</span></div>
+        {(() => {
+          const bins = new Array(21).fill(0)
+          for (const b of prelimBallots) {
+            const aff = AXES.reduce((s, a) => s + (b[`aff_${a}`] || 0), 0)
+            const opp = AXES.reduce((s, a) => s + (b[`opp_${a}`] || 0), 0)
+            bins[Math.abs(aff - opp)]++
+          }
+          return <Histogram bins={bins} labels={bins.map((_, i) => `${i}`)} />
+        })()}
+      </section>
+
+      {/* PANEL A vs B ALIGNMENT */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Panel A vs Panel B alignment</h3><span>Did both semi panels vote the same side, or diverge?</span></div>
+        {(() => {
+          const a = semiStats.rooms[1]
+          const b = semiStats.rooms[2]
+          const aWinner = a ? (a.aff > a.opp ? 'Prop' : 'Opp') : '—'
+          const bWinner = b ? (b.aff > b.opp ? 'Prop' : 'Opp') : '—'
+          const aligned = aWinner === bWinner
+          return (
+            <div className="stat-quad grid-3">
+              <div className="stat-mini">
+                <div className="stat-mini-hd">Panel A picked</div>
+                <div className="stat-motion-row"><b>{aWinner}</b> {a && `(${Math.max(a.aff, a.opp)}–${Math.min(a.aff, a.opp)})`}</div>
+              </div>
+              <div className="stat-mini">
+                <div className="stat-mini-hd">Panel B picked</div>
+                <div className="stat-motion-row"><b>{bWinner}</b> {b && `(${Math.max(b.aff, b.opp)}–${Math.min(b.aff, b.opp)})`}</div>
+              </div>
+              <div className="stat-mini">
+                <div className="stat-mini-hd">Alignment</div>
+                <div className="stat-motion-row"><b>{aligned ? 'Same side' : 'Split'}</b></div>
+                <div className="stat-motion-row">
+                  {aligned ? 'Both panels leaned the same way' : 'Panels disagreed on which side was stronger'}
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+      </section>
+
+      {/* PEAK ROUND */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Peak-performance round</h3><span>Which round each of the top 10 scored their highest</span></div>
+        <div className="stat-list">
+          {top10Total.map(s => {
+            const peak = PRELIMS.reduce((best, r) => {
+              const t = s.rounds[r]?.total ?? -1
+              return t > (best.t ?? -1) ? { r, t } : best
+            }, { r: '—', t: null })
+            return (
+              <div key={s.code} className="stat-clutch-row">
+                <span className="stat-clutch-round">{peak.r}</span>
+                <span>{s.code} · {s.name || '—'}</span>
+                <span className="stat-clutch-margin domination">{peak.t ?? '—'}/20</span>
+                <span>rounds: {s.trajectory.map(x => x ?? '—').join(' / ')}</span>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* AXIS SPECIALISTS */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Axis specialists</h3><span>Speakers with highest variance across the 4 axes — a signature strength</span></div>
+        <div className="stat-list">
+          {scholarList.map(s => {
+            const totals = AXES.map(a => s.perAxis[a].reduce((x, y) => x + y, 0))
+            const max = Math.max(...totals)
+            const min = Math.min(...totals)
+            const bestAxisIdx = totals.indexOf(max)
+            return { ...s, axisTotals: totals, spread: max - min, best: AXES[bestAxisIdx] }
+          }).sort((a, b) => b.spread - a.spread).slice(0, 5).map(s => (
+            <div key={s.code} className="stat-clutch-row">
+              <span className="stat-clutch-round">{AXIS_LABEL[s.best]}</span>
+              <span>{s.code} · {s.name || '—'}</span>
+              <span className="stat-clutch-margin domination">Δ {s.spread} pts</span>
+              <span>Arg {s.axisTotals[0]} · Reb {s.axisTotals[1]} · Del {s.axisTotals[2]} · Per {s.axisTotals[3]}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 5s CLUB */}
+      <section className="ss">
+        <div className="ss-hd"><h3>The 5s club</h3><span>Speakers who scored a 5 on at least one axis in any round</span></div>
+        <div className="stat-list">
+          {scholarList.map(s => {
+            const fivesCount = Object.values(s.rounds).reduce((n, r) => n + r.scores.filter(x => x === 5).length, 0)
+            return { ...s, fivesCount }
+          }).filter(s => s.fivesCount > 0).sort((a, b) => b.fivesCount - a.fivesCount).slice(0, 10).map(s => (
+            <div key={s.code} className="stat-clutch-row">
+              <span className="stat-clutch-round">×{s.fivesCount}</span>
+              <span>{s.code} · {s.name || '—'}</span>
+              <span className="stat-clutch-margin domination">{s.fivesCount} five{s.fivesCount === 1 ? '' : 's'}</span>
+              <span>{s.wins}W · {s.grandTotal} pts</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* RELIABILITY (never below 12) */}
+      <section className="ss">
+        <div className="ss-hd"><h3>The reliable ones</h3><span>Speakers who never scored below 12/20 in any round</span></div>
+        <div className="stat-list">
+          {scholarList.filter(s => s.totals.length >= 3 && s.totals.every(t => t >= 12)).sort((a, b) => Math.min(...b.totals) - Math.min(...a.totals) || b.grandTotal - a.grandTotal).map(s => (
+            <div key={s.code} className="stat-clutch-row">
+              <span className="stat-clutch-round">floor {Math.min(...s.totals)}</span>
+              <span>{s.code} · {s.name || '—'}</span>
+              <span className="stat-clutch-margin domination">{s.grandTotal} pts</span>
+              <span>rounds: {s.trajectory.join(' / ')}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* JUDGE RANGE & INFLATION */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Judge range + inflation</h3><span>Range = high – low ballot spread · Inflation = avg vs tournament avg</span></div>
+        {(() => {
+          const tournamentAvg = judgeStats.length ? judgeStats.reduce((s, j) => s + j.avgScore, 0) / judgeStats.length : 0
+          return (
+            <div className="stat-list">
+              {judgeStats.slice().sort((a, b) => Math.abs(b.avgScore - tournamentAvg) - Math.abs(a.avgScore - tournamentAvg)).slice(0, 10).map(j => (
+                <div key={j.code} className="stat-clutch-row">
+                  <span className="stat-clutch-round">{j.code}</span>
+                  <span>{j.name || '—'}</span>
+                  <span className="stat-clutch-margin domination">Δ {(j.avgScore - tournamentAvg > 0 ? '+' : '')}{(j.avgScore - tournamentAvg).toFixed(2)}</span>
+                  <span>range {j.range} · avg spread {j.avgSpread.toFixed(1)}</span>
+                </div>
+              ))}
+            </div>
+          )
+        })()}
+      </section>
+
+      {/* WINNER-PICKER ACCURACY */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Winner-picker consistency</h3><span>Did the judge's chosen winner also have the higher point total? Should be near 100%</span></div>
+        <BarList items={judgeStats.map(j => {
+          const matches = j.ballots.filter(x => !x.forfeit && ((x.affTotal > x.oppTotal && x.winner === 'aff') || (x.oppTotal > x.affTotal && x.winner === 'opp'))).length
+          const nonForfeit = j.ballots.filter(x => !x.forfeit && x.affTotal !== x.oppTotal).length
+          const pct = nonForfeit ? matches / nonForfeit : 1
+          return { label: `${j.code} · ${j.name || '—'}`, value: +(pct * 100).toFixed(0), max: 100, sub: `${matches}/${nonForfeit} decisive` }
+        }).sort((a, b) => a.value - b.value)} color="#efb34a" />
+      </section>
+
+      {/* CLASS BALANCE (within-class variance) */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Class balance</h3><span>Within-class spread — was the class carried by one star or evenly matched?</span></div>
+        <BarList items={classStats.map(c => {
+          const codes = scholarList.filter(s => s.class === c.class).map(s => s.grandTotal)
+          const avg = codes.length ? codes.reduce((s, n) => s + n, 0) / codes.length : 0
+          const stddev = codes.length > 1 ? Math.sqrt(codes.map(v => (v - avg) ** 2).reduce((s, n) => s + n, 0) / codes.length) : 0
+          return { label: `Class ${c.class}`, value: +stddev.toFixed(1), max: 20, sub: `avg ${avg.toFixed(1)} · min ${Math.min(...codes)} · max ${Math.max(...codes)}` }
+        }).sort((a, b) => a.value - b.value)} color="#7c5cff" />
+      </section>
+
+      {/* CLASS SIDE-WINS */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Class wins by side</h3><span>Which classes were stronger as Prop vs Opp</span></div>
+        {(() => {
+          const cs = {}
+          for (const b of prelimBallots) {
+            const pair = prelimPairings.find(p => p.round_id === b.round_id && p.room === b.room)
+            if (!pair) continue
+            const winnerCls = classOf(b.winner === 'aff' ? pair.aff_code : pair.opp_code)
+            cs[winnerCls] ||= { cls: winnerCls, prop: 0, opp: 0 }
+            if (b.winner === 'aff') cs[winnerCls].prop++
+            else if (b.winner === 'opp') cs[winnerCls].opp++
+          }
+          return (
+            <div className="stat-list">
+              {Object.values(cs).sort((a, b) => (b.prop + b.opp) - (a.prop + a.opp)).map(c => (
+                <div key={c.cls} className="stat-clutch-row">
+                  <span className="stat-clutch-round">Class {c.cls}</span>
+                  <span>{c.prop + c.opp} total wins</span>
+                  <span className="stat-clutch-margin domination">Prop {c.prop} · Opp {c.opp}</span>
+                  <span>{c.prop > c.opp ? `stronger on Prop (+${c.prop - c.opp})` : c.opp > c.prop ? `stronger on Opp (+${c.opp - c.prop})` : 'balanced'}</span>
+                </div>
+              ))}
+            </div>
+          )
+        })()}
+      </section>
+
+      {/* BEST DEBATER NOT FROM WINNING CLASS */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Best debater outside the top class</h3><span>Star speakers whose class didn't top the standings</span></div>
+        {(() => {
+          const topClass = classStats[0]?.class
+          const outsiders = scholarList.filter(s => s.class !== topClass).sort((a, b) => b.grandTotal - a.grandTotal).slice(0, 5)
+          return (
+            <div className="stat-list">
+              {outsiders.map((s, i) => (
+                <div key={s.code} className="stat-clutch-row">
+                  <span className="stat-clutch-round">#{i+1}</span>
+                  <span>{s.code} · {s.name || '—'}</span>
+                  <span className="stat-clutch-margin domination">{s.grandTotal} pts</span>
+                  <span>Class {s.class} · {s.wins}W</span>
+                </div>
+              ))}
+            </div>
+          )
+        })()}
+      </section>
+
+      {/* HIGHEST TOTAL ROOM + BIGGEST SINGLE-ROOM SPREAD (already domination) */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Highest-scoring rooms</h3><span>Total combined /40 (both speakers) — the debates that lit up</span></div>
+        <div className="stat-list">
+          {prelimBallots.map(b => {
+            const pair = prelimPairings.find(p => p.round_id === b.round_id && p.room === b.room)
+            const aff = AXES.reduce((s, a) => s + (b[`aff_${a}`] || 0), 0)
+            const opp = AXES.reduce((s, a) => s + (b[`opp_${a}`] || 0), 0)
+            return { round: b.round_id, room: b.room, total: aff + opp, aff, opp, aff_code: pair?.aff_code, opp_code: pair?.opp_code, forfeit: !!b.forfeit_side }
+          }).filter(x => !x.forfeit).sort((a, b) => b.total - a.total).slice(0, 5).map((r, i) => (
+            <div key={i} className="stat-clutch-row">
+              <span className="stat-clutch-round">{r.round}</span>
+              <span>Room #{r.room}</span>
+              <span className="stat-clutch-margin domination">{r.total}/40</span>
+              <span>{r.aff_code} ({r.aff}) vs {r.opp_code} ({r.opp})</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CX KILLER (Rebuttal specialists) */}
+      <section className="ss">
+        <div className="ss-hd"><h3>CX killers</h3><span>Best Rebuttal &amp; CX totals across R1–R3</span></div>
+        <BarList items={axisTop.rebuttal.map(s => ({
+          label: `${s.code} · ${s.name || '—'}`,
+          value: s.axisSum, max: 15, sub: `Class ${s.class}`,
+        }))} color="#b23" />
+      </section>
+
+      {/* UNDERDOG (few wins, high total) */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Underdogs</h3><span>High point-totals but low wins — good arguments, hard luck</span></div>
+        {(() => {
+          const meanTotal = scholarList.length ? scholarList.reduce((s, sp) => s + sp.grandTotal, 0) / scholarList.length : 0
+          return (
+            <div className="stat-list">
+              {scholarList.filter(s => s.grandTotal >= meanTotal && s.wins <= 1).sort((a, b) => b.grandTotal - a.grandTotal).slice(0, 5).map((s, i) => (
+                <div key={s.code} className="stat-clutch-row">
+                  <span className="stat-clutch-round">#{i+1}</span>
+                  <span>{s.code} · {s.name || '—'}</span>
+                  <span className="stat-clutch-margin domination">{s.grandTotal} pts</span>
+                  <span>only {s.wins}W · {s.losses}L</span>
+                </div>
+              ))}
+            </div>
+          )
+        })()}
+      </section>
+
+      {/* FIRST-ROUND JITTERS */}
+      <section className="ss">
+        <div className="ss-hd"><h3>First-round jitters</h3><span>Low R1 (bottom-third), but recovered by R3</span></div>
+        {(() => {
+          const r1Sorted = scholarList.filter(s => s.rounds.R1).map(s => s.rounds.R1.total).sort((a, b) => a - b)
+          const jitterThreshold = r1Sorted[Math.floor(r1Sorted.length / 3)] || 0
+          return (
+            <div className="stat-list">
+              {scholarList.filter(s => s.rounds.R1 && s.rounds.R3 && s.rounds.R1.total <= jitterThreshold && s.rounds.R3.total > s.rounds.R1.total)
+                .sort((a, b) => (b.rounds.R3.total - b.rounds.R1.total) - (a.rounds.R3.total - a.rounds.R1.total)).slice(0, 5).map(s => (
+                  <div key={s.code} className="stat-clutch-row">
+                    <span className="stat-clutch-round">R1→R3</span>
+                    <span>{s.code} · {s.name || '—'}</span>
+                    <span className="stat-clutch-margin domination">+{s.rounds.R3.total - s.rounds.R1.total} pts</span>
+                    <span>R1 {s.rounds.R1.total} → R3 {s.rounds.R3.total}</span>
+                  </div>
+                ))}
+            </div>
+          )
+        })()}
+      </section>
+
+      {/* BRACKET-BREAKER */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Bracket check</h3><span>Did the top-4-by-points make R4? And who made the final?</span></div>
+        {(() => {
+          const top4 = scholarList.slice().sort((a, b) => b.wins - a.wins || b.grandTotal - a.grandTotal).slice(0, 4).map(s => s.code)
+          const r4Codes = (pairings || []).filter(p => p.round_id === 'R4').flatMap(p => [p.aff_code, p.opp_code])
+          const r5Codes = (pairings || []).filter(p => p.round_id === 'R5').flatMap(p => [p.aff_code, p.opp_code])
+          const brokeIn = r4Codes.filter(c => !top4.includes(c))
+          const missedOut = top4.filter(c => !r4Codes.includes(c))
+          return (
+            <div className="stat-quad grid-3">
+              <div className="stat-mini">
+                <div className="stat-mini-hd">Top-4 by prelims</div>
+                {top4.map(c => <div key={c} className="stat-motion-row">{c} · {nameByCode[c] || '—'}</div>)}
+              </div>
+              <div className="stat-mini">
+                <div className="stat-mini-hd">Actually made R4</div>
+                {r4Codes.map((c, i) => <div key={i} className="stat-motion-row">{c} · {nameByCode[c] || '—'}</div>)}
+                {brokeIn.length > 0 && <div className="stat-motion-row" style={{color: '#b23'}}>Bracket-breakers: {brokeIn.join(', ')}</div>}
+                {missedOut.length > 0 && <div className="stat-motion-row" style={{color: '#b23'}}>Missed out: {missedOut.join(', ')}</div>}
+              </div>
+              <div className="stat-mini">
+                <div className="stat-mini-hd">Made the Final</div>
+                {r5Codes.map((c, i) => <div key={i} className="stat-motion-row"><b>{c}</b> · {nameByCode[c] || '—'}</div>)}
+              </div>
+            </div>
+          )
+        })()}
+      </section>
+
+      {/* MOTION TIGHTEST DEBATE */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Tightest &amp; spiciest motions</h3><span>By avg |Prop – Opp| score gap — smallest = closest debates</span></div>
+        <div className="stat-quad grid-3">
+          <div className="stat-mini">
+            <div className="stat-mini-hd">Tightest 3</div>
+            {motionStats.slice().sort((a, b) => a.avgSpread - b.avgSpread).slice(0, 3).map(m => (
+              <div key={m.id} className="stat-motion-row" title={m.text}><b>{m.kind}</b> · gap {m.avgSpread.toFixed(1)}</div>
+            ))}
+          </div>
+          <div className="stat-mini">
+            <div className="stat-mini-hd">Most one-sided 3</div>
+            {motionStats.slice().sort((a, b) => b.avgSpread - a.avgSpread).slice(0, 3).map(m => (
+              <div key={m.id} className="stat-motion-row" title={m.text}><b>{m.kind}</b> · gap {m.avgSpread.toFixed(1)}</div>
+            ))}
+          </div>
+          <div className="stat-mini">
+            <div className="stat-mini-hd">Highest-scoring 3</div>
+            {motionStats.slice().sort((a, b) => b.avgScore - a.avgScore).slice(0, 3).map(m => (
+              <div key={m.id} className="stat-motion-row" title={m.text}><b>{m.kind}</b> · avg {m.avgScore.toFixed(1)}</div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* JUDGE DRAMA */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Judges who saw the most drama</h3><span>Highest score variance across their rooms — swings of judgment</span></div>
+        <BarList items={judgeStats.slice().sort((a, b) => b.avgSpread - a.avgSpread).slice(0, 10).map(j => ({
+          label: `${j.code} · ${j.name || '—'}`,
+          value: +j.avgSpread.toFixed(2),
+          max: Math.max(...judgeStats.map(x => x.avgSpread)) || 1,
+          sub: `range ${j.range} · ${j.ballots.length} rooms`,
+        }))} color="#b23" />
+      </section>
+
+      {/* CLASS CONTRIBUTION TO BRACKET */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Class contribution to the bracket</h3><span>How many R4 quarterfinalists came from each class</span></div>
+        {(() => {
+          const r4Codes = (pairings || []).filter(p => p.round_id === 'R4').flatMap(p => [p.aff_code, p.opp_code])
+          const contribs = {}
+          for (const code of r4Codes) contribs[classOf(code)] = (contribs[classOf(code)] || 0) + 1
+          return (
+            <BarList items={Object.entries(contribs).sort((a, b) => b[1] - a[1]).map(([cls, n]) => ({
+              label: `Class ${cls}`,
+              value: n, max: 4, sub: `${n} of 4 spots`,
+            }))} color="#8cc63e" />
+          )
+        })()}
+      </section>
+
+      {/* AUTO-GENERATED HEADLINES */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Auto-generated headlines</h3><span>Copy-paste for the recap deck or social</span></div>
+        <div className="stat-list">
+          {(() => {
+            const lines = []
+            if (top10Total[0]) lines.push(`🏆 ${top10Total[0].name || top10Total[0].code} tops the prelims with ${top10Total[0].grandTotal} points across ${top10Total[0].wins} wins.`)
+            if (stories.comebacks[0] && stories.comebacks[0].delta > 0) lines.push(`📈 Comeback of the day: ${stories.comebacks[0].name || stories.comebacks[0].code} swung ${stories.comebacks[0].rounds.R1.total} → ${stories.comebacks[0].rounds.R3.total} across three rounds.`)
+            if (stories.clutch[0]) lines.push(`⚡ Tightest room of the day: R${stories.clutch[0].round.slice(1)} Room #${stories.clutch[0].room}, ${stories.clutch[0].winnerCode} edged ${stories.clutch[0].loserCode} by ${stories.clutch[0].spread} point${stories.clutch[0].spread === 1 ? '' : 's'}.`)
+            if (stories.domination[0]) lines.push(`💥 Biggest gap: R${stories.domination[0].round.slice(1)} Room #${stories.domination[0].room}, ${stories.domination[0].winnerCode} vs ${stories.domination[0].loserCode} split ${stories.domination[0].spread} points.`)
+            if (classStats[0]) lines.push(`🥇 Class ${classStats[0].class} led all classes with ${classStats[0].wins} wins and an average speaker score of ${classStats[0].avg.toFixed(1)}/20.`)
+            if (stories.grandSlams.length > 0) lines.push(`🎯 ${stories.grandSlams.length} perfect 20/20 score${stories.grandSlams.length === 1 ? '' : 's'} recorded across R1–R3.`)
+            if (championJourney) lines.push(`👑 Final: ${championJourney.champCode} · ${nameByCode[championJourney.champCode] || '—'} defeated ${championJourney.runnerCode} · ${nameByCode[championJourney.runnerCode] || '—'} — ${semiStats.final.aff}–${semiStats.final.opp} panel decision.`)
+            if (sideWinRate.total > 0) lines.push(`⚖️ Prop won ${sideWinRate.prop}/${sideWinRate.total} (${Math.round((sideWinRate.prop / sideWinRate.total) * 100)}%) of prelim rooms — ${sideWinRate.prop > sideWinRate.opp ? 'a Prop-friendly day' : sideWinRate.opp > sideWinRate.prop ? 'an Opp-friendly day' : 'perfectly split'}.`)
+            return lines.map((l, i) => (
+              <div key={i} className="stat-motion-card">
+                <div className="stat-motion-text" style={{fontFamily: '"Open Sans", sans-serif', fontStyle: 'normal', fontSize: 14}}>{l}</div>
+              </div>
+            ))
+          })()}
+        </div>
+      </section>
+
+      {/* CLASS RECAPS */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Class recap paragraphs</h3><span>One paragraph per class</span></div>
+        <div className="stat-list">
+          {classStats.map(c => {
+            const mvp = classMVPs.find(m => m.class === c.class)
+            const contribCodes = (pairings || []).filter(p => p.round_id === 'R4').flatMap(p => [p.aff_code, p.opp_code]).filter(code => classOf(code) === c.class)
+            return (
+              <div key={c.class} className="stat-motion-card">
+                <div className="stat-motion-top">
+                  <span className="tag" style={{background: '#2b2c2d'}}>Class {c.class}</span>
+                  <span>{c.count} scholars · {c.wins} wins · avg {c.avg.toFixed(1)}/20</span>
+                </div>
+                <div className="stat-motion-text" style={{fontFamily: '"Open Sans", sans-serif', fontStyle: 'normal', fontSize: 14, lineHeight: 1.55}}>
+                  Class {c.class} logged {c.wins} prelim wins with an average speaker score of {c.avg.toFixed(1)}/20 across {c.ballotsCount} ballots. {mvp && `${mvp.name || mvp.code} led the way with ${mvp.grandTotal} points and ${mvp.wins} wins.`}{contribCodes.length > 0 ? ` The class sent ${contribCodes.length} debater${contribCodes.length === 1 ? '' : 's'} into the quarterfinal bracket (${contribCodes.join(', ')}).` : ' No debaters advanced to the quarterfinal bracket.'}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
       <section className="ss ss-footnote">
         <div className="ss-hd"><h3>Meta</h3></div>
         <p>All stats computed client-side from live data. Some ideas from the brainstorm require data we didn't log (actual prep-time used, ballot submission timestamps precise to seconds, year-of-study per scholar) — those are the ones missing here. Ping me if you want to add tracking for next year.</p>
