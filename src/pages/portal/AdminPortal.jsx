@@ -856,8 +856,17 @@ function RegistrationsTab({ onMsg }) {
 
 /* ---------------- JUDGE REGISTRATIONS ---------------- */
 function JudgeRegistrationsTab({ onMsg }) {
-  const { rows: regs } = useRealtime('judge_registrations',
-    { order: { column: 'submitted_at', ascending: false } }, [])
+  const { rows: rawRegs } = useRealtime('judge_registrations', {}, [])
+  // Sort by J-code ascending (J1, J2, …, J38); unassigned rows fall to the end by submitted_at.
+  const regs = useMemo(() => {
+    const arr = rawRegs || []
+    return [...arr].sort((a, b) => {
+      const na = a.assigned_code ? parseInt(a.assigned_code.replace(/^J/, ''), 10) : Infinity
+      const nb = b.assigned_code ? parseInt(b.assigned_code.replace(/^J/, ''), 10) : Infinity
+      if (na !== nb) return na - nb
+      return new Date(a.submitted_at) - new Date(b.submitted_at)
+    })
+  }, [rawRegs])
   const [expanded, setExpanded] = useState(null)
   const [busy, setBusy] = useState(false)
 
@@ -1004,8 +1013,24 @@ function WhitelistTab({ onMsg }) {
     return () => { supabase.removeChannel(chan) }
   }, [])
   async function load() {
-    const { data } = await supabase.from('allowed_users').select('*').order('role').order('code')
-    setUsers(data || [])
+    const { data } = await supabase.from('allowed_users').select('*')
+    // Natural sort: judges J1..J38, scholars A1..F10 numerically.
+    const parseCode = (c) => {
+      if (!c) return { letter: 'Z', num: 999 }
+      const m = c.match(/^([A-Z]+)(\d+)/i)
+      return m ? { letter: m[1].toUpperCase(), num: parseInt(m[2], 10) } : { letter: c, num: 0 }
+    }
+    const roleOrder = { admin: 0, judge: 1, scholar: 2 }
+    const sorted = (data || []).slice().sort((a, b) => {
+      const ra = roleOrder[a.role] ?? 9
+      const rb = roleOrder[b.role] ?? 9
+      if (ra !== rb) return ra - rb
+      const pa = parseCode(a.code)
+      const pb = parseCode(b.code)
+      if (pa.letter !== pb.letter) return pa.letter.localeCompare(pb.letter)
+      return pa.num - pb.num
+    })
+    setUsers(sorted)
   }
 
   function statusOf(u) {
