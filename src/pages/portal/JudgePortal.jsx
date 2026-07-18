@@ -42,6 +42,7 @@ const empty = () => ({
   aff_argument: '', aff_rebuttal: '', aff_delivery: '', aff_persuasion: '', aff_note: '',
   opp_argument: '', opp_rebuttal: '', opp_delivery: '', opp_persuasion: '', opp_note: '',
   winner: '',
+  forfeit_side: '',   // 'aff' | 'opp' | '' — set when one speaker doesn't show
   speech_notes: { prop_const: '', opp_open: '', prop_rebut: '', opp_close: '', prop_close: '' },
 })
 
@@ -127,6 +128,7 @@ export default function JudgePortal() {
         row[`opp_${a.key}`] = Number(ballot[`opp_${a.key}`])
       }
       row.winner = ballot.winner
+      row.forfeit_side = ballot.forfeit_side || null
       row.aff_note = ballot.aff_note || null
       row.opp_note = ballot.opp_note || null
       row.speech_notes = ballot.speech_notes || {}
@@ -280,19 +282,44 @@ export default function JudgePortal() {
                     )}
 
                     <div className="ballot-cols">
-                      {['aff', 'opp'].map(side => (
-                        <div key={side} className={`ballot-col2 ${side}`}>
+                      {['aff', 'opp'].map(side => {
+                        const forfeited = ballot.forfeit_side === side
+                        const otherForfeited = ballot.forfeit_side && ballot.forfeit_side !== side
+                        return (
+                        <div key={side} className={`ballot-col2 ${side} ${forfeited ? 'forfeited' : ''}`}>
                           <div className="col-hd">
                             <span className={`side-tag ${side}`}>{side === 'aff' ? 'PROP' : 'OPP'}</span>
                             <span className="col-code">{side === 'aff' ? mine.aff_code : mine.opp_code}</span>
+                            {!scoresLocked && (
+                              <button type="button"
+                                      className={`forfeit-btn ${forfeited ? 'active' : ''}`}
+                                      onClick={() => {
+                                        if (forfeited) {
+                                          set('forfeit_side', '')
+                                        } else {
+                                          // Mark this side as no-show → zero their scores + auto-set winner to other side.
+                                          const patch = { forfeit_side: side, winner: side === 'aff' ? 'opp' : 'aff' }
+                                          for (const a of AXES) patch[`${side}_${a.key}`] = '0'
+                                          setBallot(prev => ({ ...prev, ...patch }))
+                                        }
+                                      }}
+                                      title={forfeited ? 'Cancel forfeit' : 'Mark this speaker as no-show'}>
+                                {forfeited ? '× Forfeit on' : 'No-show'}
+                              </button>
+                            )}
                           </div>
+                          {forfeited && (
+                            <div className="forfeit-banner">
+                              Forfeit — {side === 'aff' ? 'Prop' : 'Opp'} did not show. Scores locked at 0. Winner auto-set to {side === 'aff' ? 'Opp' : 'Prop'}.
+                            </div>
+                          )}
                           {AXES.map(a => (
                             <div key={a.key} className="score-pill-row">
                               <span className="sr-name">{a.name}</span>
                               <div className={`score-pills side-${side}`}>
                                 {[0,1,2,3,4,5].map(n => (
                                   <button type="button" key={n}
-                                          disabled={scoresLocked}
+                                          disabled={scoresLocked || forfeited}
                                           className={`score-pill ${Number(ballot[`${side}_${a.key}`]) === n ? 'sel' : ''}`}
                                           onClick={() => set(`${side}_${a.key}`, String(n))}>{n}</button>
                                 ))}
@@ -305,10 +332,11 @@ export default function JudgePortal() {
                             <textarea rows="2"
                                       value={ballot[`${side}_note`]}
                                       onChange={e => set(`${side}_note`, e.target.value)}
-                                      placeholder={`One line the ${side === 'aff' ? 'Prop' : 'Opp'} speaker should hear`} />
+                                      placeholder={forfeited ? 'No-show — no comment needed' : `One line the ${side === 'aff' ? 'Prop' : 'Opp'} speaker should hear`} />
                           </label>
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
 
                     <div className={`winner-row ${scoresLocked ? 'locked' : ''}`}>

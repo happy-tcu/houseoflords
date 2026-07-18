@@ -353,6 +353,11 @@ function RoomCard({ pairing, roundMotions, ballot, hasDraft, allJudges }) {
               title="Click to toggle absent" onClick={() => toggleAbsent('opp')}>{pairing.opp_code}</span>
       </div>
       <div className="rm-status">{status}</div>
+      {finished && ballot?.forfeit_side && (
+        <div className="rm-forfeit-chip">
+          {ballot.forfeit_side === 'aff' ? `${pairing.aff_code} forfeit` : `${pairing.opp_code} forfeit`}
+        </div>
+      )}
       {hasDraft && !finished && <div className="rm-draft">Draft in progress</div>}
       {seg.seconds > 0 && !finished && !walkover && (
         <div className="rm-time">{fmt(remaining)}</div>

@@ -3015,3 +3015,34 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
   width: 100%;
 }
 .rm-forfeit:hover { background: #911; }
+
+/* Forfeit UI on judge ballot */
+.forfeit-btn {
+  margin-left: auto;
+  padding: 4px 10px;
+  background: transparent; color: #b23;
+  border: 1.5px solid #b23; cursor: pointer;
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  border-radius: 3px;
+}
+.forfeit-btn:hover { background: #b23; color: #fff; }
+.forfeit-btn.active {
+  background: #b23; color: #fff;
+}
+.ballot-col2.forfeited { opacity: 0.55; }
+.ballot-col2.forfeited .score-pill { pointer-events: none; }
+.forfeit-banner {
+  padding: 10px 12px; margin: 10px 0;
+  background: rgba(178,34,34,0.08); border-left: 3px solid #b23;
+  font-family: 'Open Sans', sans-serif; font-size: 13px; color: #711;
+  border-radius: 2px;
+}
+/* Live room card forfeit chip */
+.rm-forfeit-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; margin-top: 6px;
+  background: #b23; color: #fff;
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+}
