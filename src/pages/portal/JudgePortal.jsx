@@ -15,20 +15,10 @@ const SPEECHES = [
   { key: 'prop_close',  label: 'Prop closing (last Aff)' },
 ]
 
-const UNLOCK_AFTER_PROP_CLOSE_SECONDS = 120  // 2 minutes
-
+// Ballot is unlocked as soon as the judge has a room + motion set. No time gate.
 function computeUnlockInfo(pairing) {
   if (!pairing) return { locked: true, remaining: null, reason: 'no room' }
-  if (pairing.segment === 'voting' || pairing.segment === 'done') {
-    // voting starts right after prop_close ends; treat voting_started_at as segment_ends_at - voting_duration
-    const votingDur = (SEGMENT_MAP.voting?.seconds ?? 180) * 1000
-    const votingEnds = pairing.segment_ends_at ? new Date(pairing.segment_ends_at).getTime() : Date.now()
-    const votingStarted = pairing.segment === 'voting' ? votingEnds - votingDur : Date.now()
-    const unlockAt = votingStarted + UNLOCK_AFTER_PROP_CLOSE_SECONDS * 1000
-    const remaining = Math.max(0, Math.floor((unlockAt - Date.now()) / 1000))
-    return { locked: remaining > 0, remaining, reason: 'countdown' }
-  }
-  return { locked: true, remaining: null, reason: 'before-voting' }
+  return { locked: false, remaining: null, reason: 'open' }
 }
 
 const AXES = [
