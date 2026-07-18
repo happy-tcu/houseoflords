@@ -684,8 +684,8 @@ function StandingsTab({ pairings, ballots }) {
   async function doFlip() {
     if (!flipModal) return
     setFlipModal(m => ({ ...m, spinning: true }))
-    // 2s of theatre, then RNG.
-    await new Promise(r => setTimeout(r, 2000))
+    // 10s of theatre, then RNG.
+    await new Promise(r => setTimeout(r, 10000))
     const propWins = Math.random() < 0.5
     const aff = propWins ? flipModal.w1 : flipModal.w2
     const opp = propWins ? flipModal.w2 : flipModal.w1

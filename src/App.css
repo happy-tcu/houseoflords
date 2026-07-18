@@ -3432,11 +3432,11 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
   transition: transform 1s ease-out;
 }
 .flip-modal.spinning .coin {
-  animation: coin-spin 2s ease-out;
+  animation: coin-spin 10s cubic-bezier(0.2, 0.6, 0.25, 1);
 }
 @keyframes coin-spin {
   0%   { transform: rotateY(0deg); }
-  100% { transform: rotateY(2160deg); }
+  100% { transform: rotateY(10800deg); }
 }
 .coin .face {
   position: absolute; inset: 0; border-radius: 999px;
