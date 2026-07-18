@@ -563,6 +563,7 @@ function BallotsTab({ rounds, pairingsByRound, ballotsByRound }) {
 function StandingsTab({ pairings, ballots }) {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState(null)
+  const { rows: semiVotes } = useRealtime('semi_votes', {}, [])
   async function buildBracket() {
     if (!confirm('Build the R4 quarters bracket from top 4 prelims? Existing R4/R5 pairings will be replaced.')) return
     setBusy(true); setNote(null)
@@ -571,13 +572,40 @@ function StandingsTab({ pairings, ballots }) {
     else setNote('Bracket built — R4 pairings live')
     setBusy(false)
   }
+  // Compute semi winners from semi_votes.
+  const semiWinners = useMemo(() => {
+    const out = {}
+    for (const room of [1, 2]) {
+      const votes = (semiVotes || []).filter(v => v.round_id === 'R4' && v.room === room)
+      const affN = votes.filter(v => v.vote === 'aff').length
+      const oppN = votes.filter(v => v.vote === 'opp').length
+      const pairing = pairings.find(p => p.round_id === 'R4' && p.room === room)
+      if (!pairing) continue
+      let winner = null
+      if (affN > oppN) winner = pairing.aff_code
+      else if (oppN > affN) winner = pairing.opp_code
+      out[room] = { winner, affN, oppN, decided: affN >= 8 || oppN >= 8 }
+    }
+    return out
+  }, [semiVotes, pairings])
+
   async function fillFinal() {
-    if (!confirm('Fill the R5 final with winners of R4?')) return
+    const w1 = semiWinners[1]?.winner
+    const w2 = semiWinners[2]?.winner
+    if (!w1 || !w2) {
+      setNote('Cannot fill — semi winners not decided yet. Need majority (≥8) in each panel.')
+      return
+    }
+    if (!confirm(`Fill R5 final:\n\nProp: ${w1} (Semi 1 winner)\nOpp: ${w2} (Semi 2 winner)\n\nProceed?`)) return
     setBusy(true); setNote(null)
-    const { error } = await supabase.rpc('fill_final')
-    if (error) setNote(`Error: ${error.message}`)
-    else setNote('R5 final populated with R4 winners')
+    // Delete any existing R5 pairing then insert.
+    await supabase.from('pairings').delete().eq('round_id', 'R5')
+    const { error } = await supabase.from('pairings').insert({
+      round_id: 'R5', room: 1, aff_code: w1, opp_code: w2, judge_code: 'J1', strike_turn: 'opp',
+    })
     setBusy(false)
+    if (error) setNote(`Error: ${error.message}`)
+    else setNote(`R5 pairing set: ${w1} (Prop) vs ${w2} (Opp)`)
   }
   const stats = useMemo(() => {
     const s = {}   // { code: { wins, points, appearances } }
@@ -603,7 +631,16 @@ function StandingsTab({ pairings, ballots }) {
       <button className="btn-primary" onClick={buildBracket} disabled={busy || stats.length < 4}>
         Build R4 quarters from top 4
       </button>
-      <button className="btn-secondary" onClick={fillFinal} disabled={busy}>Fill R5 final</button>
+      <button className="btn-secondary" onClick={fillFinal}
+              disabled={busy || !(semiWinners[1]?.decided && semiWinners[2]?.decided)}
+              title={semiWinners[1]?.decided && semiWinners[2]?.decided
+                ? `Semi 1: ${semiWinners[1].winner} · Semi 2: ${semiWinners[2].winner}`
+                : `Semi 1: ${semiWinners[1]?.affN||0}-${semiWinners[1]?.oppN||0} · Semi 2: ${semiWinners[2]?.affN||0}-${semiWinners[2]?.oppN||0}`}>
+        Fill R5 final
+        {semiWinners[1]?.decided && semiWinners[2]?.decided && (
+          <span style={{marginLeft: 8, fontSize: 10}}>{semiWinners[1].winner} vs {semiWinners[2].winner}</span>
+        )}
+      </button>
     </div>
     {stats.length === 0 ? (
       <div className="portal-empty"><b>No results yet.</b><span>Standings populate as ballots come in.</span></div>
