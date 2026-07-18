@@ -56,6 +56,7 @@ export default function AdminPortal() {
           ['live',    'Live Rooms'],
           ['motions', 'Round Motions'],
           ['ballots', 'Ballot Tracker'],
+          ['feedback','Feedback Preview'],
           ['standings','Standings'],
           ['broadcast','Announcements'],
           ['certs',   'Certificates'],
@@ -75,6 +76,8 @@ export default function AdminPortal() {
       {tab === 'motions' && <MotionsTab rounds={rounds || []} motionsByRound={motionsByRound} onMsg={setMsg} />}
       {tab === 'ballots' && <BallotsTab rounds={rounds || []} pairingsByRound={pairingsByRound}
                                        ballotsByRound={ballotsByRound} />}
+      {tab === 'feedback' && <FeedbackPreviewTab pairings={pairings || []} ballots={ballots || []}
+                                                  rounds={rounds || []} motions={motions || []} />}
       {tab === 'standings' && <StandingsTab pairings={pairings || []} ballots={ballots || []} />}
       {tab === 'broadcast' && <BroadcastTab announcements={announcements || []} onMsg={setMsg} />}
       {tab === 'certs'     && <CertificatesTab onMsg={setMsg} />}
@@ -1267,6 +1270,229 @@ function JudgeRegistrationsTab({ onMsg }) {
         </div>
       )}
     </>
+  )
+}
+
+/* ---------------- FEEDBACK PREVIEW (admin-only, ignores public gate) ---------------- */
+function FeedbackPreviewTab({ pairings, ballots, rounds, motions }) {
+  const { rows: allowed } = useRealtime('allowed_users', {}, [])
+  const { rows: semiVotes } = useRealtime('semi_votes', {}, [])
+  const [mode, setMode] = useState('scholar') // 'scholar' | 'room'
+  const [scholarCode, setScholarCode] = useState('')
+  const [roundFilter, setRoundFilter] = useState('R1')
+  const [roomFilter, setRoomFilter] = useState('')
+
+  const scholars = useMemo(
+    () => (allowed || []).filter(u => u.role === 'scholar').sort((a, b) => {
+      const pa = a.code?.match(/^([A-F])(\d+)/); const pb = b.code?.match(/^([A-F])(\d+)/)
+      if (!pa || !pb) return (a.code || '').localeCompare(b.code || '')
+      return pa[1].localeCompare(pb[1]) || (parseInt(pa[2], 10) - parseInt(pb[2], 10))
+    }),
+    [allowed]
+  )
+  const nameByCode = useMemo(() => {
+    const m = {}
+    for (const u of (allowed || [])) if (u.code) m[u.code] = u.name
+    return m
+  }, [allowed])
+  const motionById = useMemo(() => {
+    const m = {}
+    for (const x of (motions || [])) m[x.id] = x
+    return m
+  }, [motions])
+
+  const AXES = [
+    ['argument', 'Argument'], ['rebuttal', 'Rebuttal & CX'],
+    ['delivery', 'Delivery'], ['persuasion', 'Persuasion'],
+  ]
+  const SPEECHES = [
+    ['prop_const','Prop constructive'],
+    ['opp_open','Opp opening'],
+    ['prop_rebut','Prop rebuttal'],
+    ['opp_close','Opp closing'],
+    ['prop_close','Prop closing'],
+  ]
+
+  return (
+    <div className="feedback-preview">
+      <div className="fp-mode-tabs">
+        <button className={mode === 'scholar' ? 'active' : ''} onClick={() => setMode('scholar')}>By Scholar</button>
+        <button className={mode === 'room' ? 'active' : ''} onClick={() => setMode('room')}>By Room (full ballot)</button>
+      </div>
+
+      {mode === 'scholar' ? (
+        <>
+          <div className="fp-controls">
+            <label>
+              <span>Scholar</span>
+              <select value={scholarCode} onChange={e => setScholarCode(e.target.value)}>
+                <option value="">— Pick a scholar —</option>
+                {scholars.map(s => (
+                  <option key={s.code} value={s.code}>{s.code} · {s.name || s.email}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {scholarCode ? (
+            <div className="fp-scholar-view">
+              <div className="fp-scholar-hd">
+                <span className="kicker">Preview · admin only</span>
+                <h3>{scholarCode} · {nameByCode[scholarCode] || '—'}</h3>
+              </div>
+              {(rounds || []).filter(r => ['R1','R2','R3'].includes(r.id)).map(r => {
+                const p = pairings.find(x => x.round_id === r.id && (x.aff_code === scholarCode || x.opp_code === scholarCode))
+                if (!p) return (
+                  <div key={r.id} className="fp-row empty">{r.id} — no assignment</div>
+                )
+                const mySide = p.aff_code === scholarCode ? 'aff' : 'opp'
+                const oppSide = mySide === 'aff' ? 'opp' : 'aff'
+                const oppCode = mySide === 'aff' ? p.opp_code : p.aff_code
+                const b = ballots.find(x => x.round_id === r.id && x.room === p.room)
+                const myScores = b ? AXES.map(([k]) => b[`${mySide}_${k}`] || 0) : null
+                const oppScores = b ? AXES.map(([k]) => b[`${oppSide}_${k}`] || 0) : null
+                const myTotal = myScores ? myScores.reduce((s, n) => s + n, 0) : null
+                const oppTotal = oppScores ? oppScores.reduce((s, n) => s + n, 0) : null
+                const won = b ? (b.winner === mySide) : null
+                const forfeited = b?.forfeit_side === mySide
+                const myNote = b ? b[`${mySide}_note`] : null
+                return (
+                  <div key={r.id} className="fp-row">
+                    <div className="fp-row-hd">
+                      <span className="fp-round">{r.id}</span>
+                      <span>Room #{p.room}</span>
+                      <span className={`fp-side ${mySide}`}>{mySide === 'aff' ? 'PROP' : 'OPP'}</span>
+                      <span>vs {oppCode}</span>
+                      <span>Judge {p.judge_code}</span>
+                      {b ? (
+                        <span className={`fp-result ${won ? 'won' : 'lost'}`}>{won ? 'W' : 'L'} · {myTotal}/20</span>
+                      ) : <span className="fp-result pending">No ballot</span>}
+                    </div>
+                    {b && (
+                      <div className="fp-scorecard">
+                        {forfeited && <div className="fp-forfeit">Forfeit recorded for {scholarCode}.</div>}
+                        <table className="fmt-table dp-scorecard">
+                          <thead><tr><th></th><th>{scholarCode}</th><th>{oppCode}</th></tr></thead>
+                          <tbody>
+                            {AXES.map(([k, label], i) => (
+                              <tr key={k}><td className="axis">{label}</td>
+                                <td className={`score ${myScores[i] > oppScores[i] ? 'higher' : ''}`}>{myScores[i]}/5</td>
+                                <td className={`score ${oppScores[i] > myScores[i] ? 'higher' : ''}`}>{oppScores[i]}/5</td>
+                              </tr>
+                            ))}
+                            <tr className="total-row">
+                              <td>Total</td>
+                              <td><b>{myTotal}/20</b></td><td><b>{oppTotal}/20</b></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        {myNote && (
+                          <div className="dp-note-block">
+                            <span className="dp-note-label">Note from Judge {p.judge_code}</span>
+                            <div className="dp-note">"{myNote}"</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="portal-empty"><b>Pick a scholar</b><span>See their round-by-round scores + judge notes exactly as they will after release.</span></div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="fp-controls">
+            <label>
+              <span>Round</span>
+              <select value={roundFilter} onChange={e => { setRoundFilter(e.target.value); setRoomFilter('') }}>
+                {['R1','R2','R3'].map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>Room</span>
+              <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)}>
+                <option value="">— Pick a room —</option>
+                {pairings.filter(p => p.round_id === roundFilter).sort((a, b) => a.room - b.room).map(p => (
+                  <option key={p.id} value={p.room}>Room #{p.room} · {p.aff_code} vs {p.opp_code} · Judge {p.judge_code}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {roomFilter ? (() => {
+            const p = pairings.find(x => x.round_id === roundFilter && String(x.room) === String(roomFilter))
+            const b = ballots.find(x => x.round_id === roundFilter && String(x.room) === String(roomFilter))
+            const motion = p ? motionById[p.final_motion_id] : null
+            if (!p) return <div className="portal-empty">No pairing found.</div>
+            const affTotal = b ? AXES.reduce((s, [k]) => s + (b[`aff_${k}`] || 0), 0) : null
+            const oppTotal = b ? AXES.reduce((s, [k]) => s + (b[`opp_${k}`] || 0), 0) : null
+            return (
+              <div className="fp-room-view">
+                <div className="fp-scholar-hd">
+                  <span className="kicker">{roundFilter} · Room #{p.room} · Judge {p.judge_code}</span>
+                  <h3>{p.aff_code} · {nameByCode[p.aff_code] || '—'} <span style={{opacity: 0.5}}>vs</span> {p.opp_code} · {nameByCode[p.opp_code] || '—'}</h3>
+                </div>
+                {motion && (
+                  <div className="fp-motion">
+                    <span className={`tag`} style={{background: motion.kind === 'Policy' ? '#1dafec' : motion.kind === 'Value' ? '#efb34a' : '#8cc63e'}}>{motion.kind}</span>
+                    <span>{motion.text}</span>
+                  </div>
+                )}
+                {b ? (
+                  <>
+                    <table className="fmt-table dp-scorecard">
+                      <thead><tr><th></th><th>Prop · {p.aff_code}</th><th>Opp · {p.opp_code}</th></tr></thead>
+                      <tbody>
+                        {AXES.map(([k, label]) => (
+                          <tr key={k}><td className="axis">{label}</td>
+                            <td className={`score ${(b[`aff_${k}`]||0) > (b[`opp_${k}`]||0) ? 'higher' : ''}`}>{b[`aff_${k}`] ?? 0}/5</td>
+                            <td className={`score ${(b[`opp_${k}`]||0) > (b[`aff_${k}`]||0) ? 'higher' : ''}`}>{b[`opp_${k}`] ?? 0}/5</td>
+                          </tr>
+                        ))}
+                        <tr className="total-row">
+                          <td>Total</td>
+                          <td><b>{affTotal}/20</b></td><td><b>{oppTotal}/20</b></td>
+                        </tr>
+                        <tr>
+                          <td><b>Winner</b></td>
+                          <td colSpan={2}>{b.winner === 'aff' ? `Prop · ${p.aff_code}` : `Opp · ${p.opp_code}`}
+                            {b.forfeit_side && <span className="fp-forfeit-inline"> (forfeit on {b.forfeit_side})</span>}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    {(b.aff_note || b.opp_note) && (
+                      <div className="fp-notes-block">
+                        <span className="dp-note-label">Judge notes to speakers</span>
+                        {b.aff_note && <div className="dp-note"><b>→ {p.aff_code}:</b> "{b.aff_note}"</div>}
+                        {b.opp_note && <div className="dp-note"><b>→ {p.opp_code}:</b> "{b.opp_note}"</div>}
+                      </div>
+                    )}
+                    {b.speech_notes && Object.values(b.speech_notes).some(v => v) && (
+                      <div className="fp-speech-block">
+                        <span className="dp-note-label">Judge's speech-by-speech notes</span>
+                        {SPEECHES.map(([k, label]) => b.speech_notes?.[k] ? (
+                          <div key={k} className="fp-speech-item">
+                            <b>{label}:</b> <span>{b.speech_notes[k]}</span>
+                          </div>
+                        ) : null)}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="portal-empty"><b>No ballot submitted.</b></div>
+                )}
+              </div>
+            )
+          })() : (
+            <div className="portal-empty"><b>Pick a room</b><span>Shows the full ballot content — every score, every note, every speech observation the judge captured.</span></div>
+          )}
+        </>
+      )}
+    </div>
   )
 }
 

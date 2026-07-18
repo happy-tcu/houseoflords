@@ -3467,3 +3467,130 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
   .flip-modal h2 { font-size: 36px; }
   .flip-code { font-size: 40px; }
 }
+
+/* ============ FEEDBACK PREVIEW ============ */
+.feedback-preview { padding: 8px 0; }
+.fp-mode-tabs {
+  display: flex; gap: 4px; margin-bottom: 20px;
+  border-bottom: 1.5px solid rgba(43,44,45,0.14);
+}
+.fp-mode-tabs button {
+  padding: 10px 18px;
+  background: transparent; border: none; cursor: pointer;
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: rgba(43,44,45,0.6);
+  border-bottom: 3px solid transparent;
+}
+.fp-mode-tabs button:hover { color: var(--brand-dark, #2b2c2d); }
+.fp-mode-tabs button.active {
+  color: var(--brand-dark, #2b2c2d);
+  border-bottom-color: var(--brand-green, #8cc63e);
+}
+.fp-controls {
+  display: flex; gap: 20px; margin-bottom: 24px; flex-wrap: wrap;
+}
+.fp-controls label {
+  display: flex; flex-direction: column; gap: 6px; min-width: 260px;
+}
+.fp-controls label span {
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  color: rgba(43,44,45,0.6);
+}
+.fp-controls select {
+  padding: 10px 12px;
+  font-family: 'Open Sans', sans-serif; font-size: 14px;
+  border: 1.5px solid rgba(43,44,45,0.28); background: #fff;
+}
+.fp-scholar-hd {
+  margin-bottom: 20px;
+}
+.fp-scholar-hd .kicker {
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--brand-green-2, #7ab332);
+}
+.fp-scholar-hd h3 {
+  font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+  font-weight: 700; font-size: 34px;
+  color: var(--brand-dark, #2b2c2d);
+  margin: 4px 0 0;
+}
+.fp-row {
+  padding: 18px 20px; margin-bottom: 14px;
+  border: 1.5px solid rgba(43,44,45,0.14);
+  background: #fff;
+}
+.fp-row.empty {
+  padding: 12px 20px;
+  color: rgba(43,44,45,0.5);
+  font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 12px;
+  text-align: center;
+  background: rgba(43,44,45,0.03);
+}
+.fp-row-hd {
+  display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+  font-family: 'Open Sans', sans-serif; font-size: 14px;
+  padding-bottom: 12px; margin-bottom: 12px;
+  border-bottom: 1px dashed rgba(43,44,45,0.16);
+}
+.fp-round {
+  font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 14px;
+  color: var(--brand-green-2, #7ab332);
+}
+.fp-side {
+  padding: 3px 8px;
+  font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 10px;
+  letter-spacing: 1.5px; text-transform: uppercase;
+}
+.fp-side.aff { background: #1dafec; color: #fff; }
+.fp-side.opp { background: #efb34a; color: #fff; }
+.fp-result {
+  margin-left: auto;
+  padding: 4px 12px;
+  font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 11px;
+  letter-spacing: 1.5px; text-transform: uppercase;
+}
+.fp-result.won { background: var(--brand-green, #8cc63e); color: #fff; }
+.fp-result.lost { background: rgba(43,44,45,0.1); color: var(--brand-dark, #2b2c2d); }
+.fp-result.pending { background: rgba(43,44,45,0.05); color: rgba(43,44,45,0.5); }
+.fp-scorecard { padding: 8px 0; }
+.fp-forfeit,
+.fp-forfeit-inline {
+  color: #b23;
+  font-family: 'Open Sans', sans-serif; font-size: 13px; font-style: italic;
+}
+.fp-motion {
+  display: flex; gap: 12px; align-items: center;
+  padding: 12px 16px; margin-bottom: 16px;
+  background: var(--cream, #fbf7ee);
+  border-left: 3px solid var(--brand-dark, #2b2c2d);
+  font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+  font-size: 17px;
+}
+.fp-motion .tag {
+  padding: 2px 8px; color: #fff;
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  font-style: normal;
+}
+.fp-notes-block, .fp-speech-block {
+  margin-top: 18px;
+  padding: 14px 16px;
+  background: var(--cream, #fbf7ee);
+  border: 1.5px solid rgba(43,44,45,0.14);
+}
+.fp-speech-item {
+  padding: 8px 0;
+  border-top: 1px dashed rgba(43,44,45,0.14);
+  font-family: 'Open Sans', sans-serif; font-size: 13px;
+  line-height: 1.5;
+}
+.fp-speech-item:first-of-type { border-top: none; padding-top: 12px; }
+.fp-speech-item b {
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--brand-green-2, #7ab332);
+  display: block; margin-bottom: 4px;
+}
