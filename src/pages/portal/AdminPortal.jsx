@@ -2657,6 +2657,131 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
         </div>
       </section>
 
+      {/* CHART VARIETY */}
+
+      {/* RADAR — axis profiles of top 5 */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Axis profile radar</h3><span>The 4-axis shape of each top-5 scholar — see who's balanced vs specialized</span></div>
+        {(() => {
+          const colors = ['#8cc63e','#1dafec','#efb34a','#7c5cff','#b23']
+          const series = top10Total.slice(0, 5).map((s, i) => ({
+            label: `${s.code} · ${s.name || '—'}`,
+            subLabel: `${s.grandTotal} pts`,
+            values: AXES.map(a => s.perAxis[a].reduce((sum, n) => sum + n, 0)),
+            color: colors[i],
+          }))
+          return <Radar series={series} axesLabels={AXES.map(a => AXIS_LABEL[a])} max={15} />
+        })()}
+      </section>
+
+      {/* LINE — top 10 trajectory across R1/R2/R3 */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Top-10 trajectory</h3><span>Round-by-round /20 totals — who peaked, who tanked</span></div>
+        {(() => {
+          const colors = ['#8cc63e','#1dafec','#efb34a','#7c5cff','#b23','#2b2c2d','#a67628','#1189c1','#7ab332','#e91e63']
+          const series = top10Total.map((s, i) => ({
+            label: `${s.code}`,
+            values: PRELIMS.map(r => s.rounds[r]?.total ?? null),
+            color: colors[i % colors.length],
+          }))
+          return <LineChart series={series} xLabels={PRELIMS} yMax={20} />
+        })()}
+      </section>
+
+      {/* SCATTER — wins vs total points */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Wins vs points scatter</h3><span>Each dot = one scholar. Colored by class. Top-right = dominant; bottom-right = high points, no wins</span></div>
+        {(() => {
+          const cc = { A: '#8cc63e', B: '#1dafec', C: '#efb34a', D: '#7c5cff', E: '#b23', F: '#2b2c2d' }
+          const points = scholarList.map(s => ({
+            x: s.wins, y: s.grandTotal, color: cc[s.class] || '#999',
+            label: `${s.code} · ${s.name || '—'}`,
+          }))
+          return (
+            <>
+              <Scatter points={points} xMax={3} yMax={60} xLabel="Wins (R1–R3)" yLabel="Total points" />
+              <div className="s-donut-legend" style={{marginTop: 8}}>
+                {Object.entries(cc).map(([cls, col]) => (
+                  <div key={cls}><span className="chip" style={{background: col}} />Class {cls}</div>
+                ))}
+              </div>
+            </>
+          )
+        })()}
+      </section>
+
+      {/* STACKED BAR — class wins by side */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Class wins by side (stacked)</h3><span>Blue = wins as Prop · Orange = wins as Opp</span></div>
+        {(() => {
+          const cs = {}
+          for (const b of prelimBallots) {
+            const pair = prelimPairings.find(p => p.round_id === b.round_id && p.room === b.room)
+            if (!pair) continue
+            const winnerCode = b.winner === 'aff' ? pair.aff_code : pair.opp_code
+            if (!winnerCode) continue
+            const cls = classOf(winnerCode)
+            cs[cls] ||= { prop: 0, opp: 0 }
+            if (b.winner === 'aff') cs[cls].prop++
+            else if (b.winner === 'opp') cs[cls].opp++
+          }
+          const groups = ['A','B','C','D','E','F'].map(cls => ({
+            label: `Class ${cls}`,
+            segments: [
+              { value: cs[cls]?.prop || 0, color: '#1dafec', label: 'Prop wins' },
+              { value: cs[cls]?.opp || 0, color: '#efb34a', label: 'Opp wins' },
+            ],
+          }))
+          return <StackedBar groups={groups} />
+        })()}
+      </section>
+
+      {/* SPARKLINE table — trajectory column */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Top 10 with sparkline trends</h3><span>Inline round-by-round trend — up, flat, or down</span></div>
+        <table className="fmt-table">
+          <thead><tr><th>Rank</th><th>Code</th><th>Name</th><th>R1 → R2 → R3</th><th>Trend</th><th>Total</th></tr></thead>
+          <tbody>
+            {top10Total.map((s, i) => (
+              <tr key={s.code}>
+                <td className="rank">{i + 1}</td>
+                <td className="seg">{s.code}</td>
+                <td>{s.name || '—'}</td>
+                <td>{s.trajectory.map(v => v ?? '—').join(' · ')}</td>
+                <td><Sparkline values={s.trajectory} max={20} color={s.trajectory[2] > s.trajectory[0] ? '#8cc63e' : s.trajectory[2] < s.trajectory[0] ? '#b23' : '#7c5cff'} /></td>
+                <td><b>{s.grandTotal}</b></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      {/* RADAR — judge severity vs consistency (single-radar with 2 series) */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Judge fingerprints (radar)</h3><span>Top-5 judges by activity, plotted on 4 dimensions</span></div>
+        {(() => {
+          const top5 = judgeStats.slice().sort((a, b) => b.ballots.length - a.ballots.length).slice(0, 5)
+          const colors = ['#8cc63e','#1dafec','#efb34a','#7c5cff','#b23']
+          const maxSeverity = 20
+          const maxRange = 20
+          const maxLean = 1
+          const maxNote = Math.max(1, ...judgeStats.map(j => j.avgNoteLen))
+          const scale = (v, m) => (v / m) * 15
+          const series = top5.map((j, i) => ({
+            label: `${j.code}`,
+            subLabel: `${j.ballots.length} rooms`,
+            values: [
+              scale(j.avgScore, maxSeverity),
+              scale(j.range, maxRange),
+              scale(j.propLean, maxLean),
+              scale(j.avgNoteLen, maxNote),
+            ],
+            color: colors[i],
+          }))
+          return <Radar series={series} axesLabels={['Severity','Range','Prop lean','Note density']} max={15} />
+        })()}
+      </section>
+
       <section className="ss ss-footnote">
         <div className="ss-hd"><h3>Meta</h3></div>
         <p>All stats computed client-side from live data. Some ideas from the brainstorm require data we didn't log (actual prep-time used, ballot submission timestamps precise to seconds, year-of-study per scholar) — those are the ones missing here. Ping me if you want to add tracking for next year.</p>
@@ -2756,6 +2881,173 @@ function JourneyTimeline({ steps }) {
         </div>
       ))}
     </div>
+  )
+}
+
+/* ---------------- MORE CHART TYPES ---------------- */
+function Radar({ series, axesLabels, max = 15 }) {
+  // series: [{label, values: [n,n,n,n], color}]
+  const size = 260, cx = size / 2, cy = size / 2, r = size / 2 - 30
+  const n = axesLabels.length
+  const angle = (i) => (Math.PI * 2 * i) / n - Math.PI / 2
+  const pt = (v, i) => [cx + Math.cos(angle(i)) * (v / max) * r, cy + Math.sin(angle(i)) * (v / max) * r]
+  const grid = [0.25, 0.5, 0.75, 1].map(pct =>
+    Array.from({ length: n }, (_, i) => pt(pct * max, i)).map(([x, y]) => `${x},${y}`).join(' ')
+  )
+  return (
+    <div className="s-radar-wrap">
+      <svg viewBox={`0 0 ${size} ${size}`} className="s-radar">
+        {grid.map((pts, i) => <polygon key={i} points={pts} className="s-radar-grid" />)}
+        {axesLabels.map((_, i) => {
+          const [x, y] = pt(max, i)
+          return <line key={i} x1={cx} y1={cy} x2={x} y2={y} className="s-radar-axis" />
+        })}
+        {series.map((s, i) => {
+          const pts = s.values.map((v, j) => pt(v, j).join(',')).join(' ')
+          return (
+            <g key={i}>
+              <polygon points={pts} fill={s.color} fillOpacity={0.15} stroke={s.color} strokeWidth={2} />
+              {s.values.map((v, j) => {
+                const [x, y] = pt(v, j)
+                return <circle key={j} cx={x} cy={y} r={3} fill={s.color} />
+              })}
+            </g>
+          )
+        })}
+        {axesLabels.map((lbl, i) => {
+          const [x, y] = pt(max * 1.15, i)
+          return <text key={i} x={x} y={y} textAnchor="middle" dominantBaseline="middle" className="s-radar-label">{lbl}</text>
+        })}
+      </svg>
+      <div className="s-radar-legend">
+        {series.map((s, i) => (
+          <div key={i}><span className="chip" style={{ background: s.color }} />{s.label} <small>{s.subLabel || ''}</small></div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function LineChart({ series, xLabels, yMax = 20 }) {
+  // series: [{label, values: [n,n,n], color}]
+  const w = 720, h = 260, padL = 44, padB = 32, padT = 16, padR = 20
+  const iw = w - padL - padR, ih = h - padT - padB
+  const yTicks = [0, 5, 10, 15, 20]
+  const xStep = xLabels.length > 1 ? iw / (xLabels.length - 1) : iw
+  const yFor = v => padT + ih - (v / yMax) * ih
+  return (
+    <div className="s-line-wrap">
+      <svg viewBox={`0 0 ${w} ${h}`} className="s-line">
+        {yTicks.map((t, i) => (
+          <g key={i}>
+            <line x1={padL} y1={yFor(t)} x2={w - padR} y2={yFor(t)} className="s-line-grid" />
+            <text x={padL - 6} y={yFor(t)} textAnchor="end" dominantBaseline="middle" className="s-line-yl">{t}</text>
+          </g>
+        ))}
+        {xLabels.map((lbl, i) => (
+          <text key={i} x={padL + i * xStep} y={h - 8} textAnchor="middle" className="s-line-xl">{lbl}</text>
+        ))}
+        {series.map((s, i) => {
+          const path = s.values.map((v, j) => (v == null ? null : `${j === 0 ? 'M' : 'L'}${padL + j * xStep},${yFor(v)}`)).filter(Boolean).join(' ')
+          return (
+            <g key={i}>
+              <path d={path} fill="none" stroke={s.color} strokeWidth={2.5} />
+              {s.values.map((v, j) => v == null ? null : (
+                <circle key={j} cx={padL + j * xStep} cy={yFor(v)} r={4} fill={s.color} />
+              ))}
+            </g>
+          )
+        })}
+      </svg>
+      <div className="s-line-legend">
+        {series.map((s, i) => (
+          <div key={i}><span className="chip" style={{ background: s.color }} />{s.label}</div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function Scatter({ points, xMax, yMax, xLabel, yLabel }) {
+  // points: [{x, y, label, color}]
+  const w = 640, h = 360, padL = 44, padB = 40, padT = 16, padR = 20
+  const iw = w - padL - padR, ih = h - padT - padB
+  const xFor = v => padL + (v / xMax) * iw
+  const yFor = v => padT + ih - (v / yMax) * ih
+  const xTicks = Array.from({ length: 5 }, (_, i) => Math.round((xMax / 4) * i))
+  const yTicks = Array.from({ length: 5 }, (_, i) => Math.round((yMax / 4) * i))
+  return (
+    <div className="s-scatter-wrap">
+      <svg viewBox={`0 0 ${w} ${h}`} className="s-scatter">
+        {yTicks.map((t, i) => (
+          <g key={i}>
+            <line x1={padL} y1={yFor(t)} x2={w - padR} y2={yFor(t)} className="s-line-grid" />
+            <text x={padL - 6} y={yFor(t)} textAnchor="end" dominantBaseline="middle" className="s-line-yl">{t}</text>
+          </g>
+        ))}
+        {xTicks.map((t, i) => (
+          <g key={i}>
+            <line x1={xFor(t)} y1={padT} x2={xFor(t)} y2={padT + ih} className="s-line-grid" />
+            <text x={xFor(t)} y={h - 20} textAnchor="middle" className="s-line-xl">{t}</text>
+          </g>
+        ))}
+        <text x={w / 2} y={h - 4} textAnchor="middle" className="s-line-title">{xLabel}</text>
+        <text x={12} y={h / 2} textAnchor="middle" className="s-line-title" transform={`rotate(-90, 12, ${h / 2})`}>{yLabel}</text>
+        {points.map((p, i) => (
+          <g key={i}>
+            <circle cx={xFor(p.x)} cy={yFor(p.y)} r={5} fill={p.color} fillOpacity={0.55} stroke={p.color} />
+            {p.label && <title>{p.label}: {p.x}, {p.y}</title>}
+          </g>
+        ))}
+      </svg>
+    </div>
+  )
+}
+
+function StackedBar({ groups }) {
+  // groups: [{label, segments: [{value, color, label}]}]
+  const max = Math.max(1, ...groups.map(g => g.segments.reduce((s, x) => s + x.value, 0)))
+  return (
+    <div className="s-stacked">
+      {groups.map((g, i) => {
+        let acc = 0
+        return (
+          <div key={i} className="s-stacked-row">
+            <div className="s-stacked-lbl">{g.label}</div>
+            <div className="s-stacked-bar">
+              {g.segments.map((sg, j) => {
+                const w = (sg.value / max) * 100
+                const el = (
+                  <div key={j} className="s-stacked-seg" style={{ width: `${w}%`, background: sg.color }}
+                       title={`${sg.label}: ${sg.value}`}>
+                    {w > 8 && <span>{sg.value}</span>}
+                  </div>
+                )
+                acc += sg.value
+                return el
+              })}
+            </div>
+            <div className="s-stacked-total">{g.segments.reduce((s, x) => s + x.value, 0)}</div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function Sparkline({ values, max = 20, color = '#8cc63e' }) {
+  const w = 80, h = 22
+  if (!values || values.length === 0) return <svg width={w} height={h} />
+  const step = values.length > 1 ? w / (values.length - 1) : w
+  const yFor = v => v == null ? null : h - (v / max) * h
+  const pts = values.map((v, i) => v == null ? null : `${i * step},${yFor(v)}`).filter(Boolean).join(' ')
+  return (
+    <svg width={w} height={h} className="s-spark">
+      <polyline points={pts} fill="none" stroke={color} strokeWidth={2} />
+      {values.map((v, i) => v == null ? null : (
+        <circle key={i} cx={i * step} cy={yFor(v)} r={2} fill={color} />
+      ))}
+    </svg>
   )
 }
 
