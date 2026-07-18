@@ -3344,3 +3344,26 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
 }
 .rm-panel-chip.voted-aff { background: #1dafec; color: #fff; border-color: #1dafec; }
 .rm-panel-chip.voted-opp { background: #efb34a; color: #fff; border-color: #efb34a; }
+
+/* Ballot tracker — semi/final blocks */
+.bm-semi-block {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1.5px solid rgba(43,44,45,0.14);
+  background: rgba(140,198,62,0.04);
+}
+.bm-semi-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+  font-family: 'Montserrat', sans-serif; font-weight: 700;
+  font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--brand-dark, #2b2c2d);
+}
+.bm-grid-tight {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 4px;
+}
+.bm-cell.tight {
+  padding: 6px 4px;
+  font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 10px;
+  text-align: center;
+}

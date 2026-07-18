@@ -527,12 +527,27 @@ const colorFor = (k) => k === 'Policy' ? '#1dafec' : k === 'Value' ? '#efb34a' :
 /* ---------------- BALLOTS ---------------- */
 function BallotsTab({ rounds, pairingsByRound, ballotsByRound }) {
   const PRELIMS = ['R1','R2','R3']
+  const { rows: semiVotes } = useRealtime('semi_votes', {}, [])
+  const { rows: allowed } = useRealtime('allowed_users', {}, [])
+  const { rows: semiPanels } = useRealtime('semi_panels', {}, [])
+
+  const allJudges = useMemo(() => (allowed || []).filter(u => u.role === 'judge'), [allowed])
+  const panelForRoom = { 1: 'A', 2: 'B' }
+
+  // For each judge, list the R4 + R5 rooms they vote on.
+  function judgesForR4Room(room) {
+    return (semiPanels || []).filter(p => p.panel === panelForRoom[room]).map(p => p.judge_code)
+  }
+  const finalPanelCodes = allJudges.map(j => j.code)
+
   return (
     <div className="ballot-matrix">
       <div className="ballot-matrix-legend">
         <span className="mchip in">Submitted</span>
         <span className="mchip pending">Pending</span>
       </div>
+
+      {/* Prelims — 1 ballot per room */}
       {PRELIMS.map(rid => {
         const pairs = pairingsByRound[rid] || []
         const bals  = ballotsByRound[rid] || []
@@ -546,11 +561,77 @@ function BallotsTab({ rounds, pairingsByRound, ballotsByRound }) {
             <div className="bm-grid">
               {pairs.map(p => (
                 <div key={p.id} className={`bm-cell ${byRoom.has(p.room) ? 'in' : 'pending'}`}
-                     title={`Room #${p.room} · J${p.judge_code} · ${p.aff_code} vs ${p.opp_code}`}>
+                     title={`Room #${p.room} · ${p.judge_code} · ${p.aff_code} vs ${p.opp_code}`}>
                   <span className="bm-room">#{p.room}</span>
                   <span className="bm-judge">{p.judge_code}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        )
+      })}
+
+      {/* R4 semis — one cell per judge per panel room */}
+      {['R4'].map(rid => {
+        const pairs = pairingsByRound[rid] || []
+        if (pairs.length === 0) return null
+        return (
+          <div key={rid} className="bm-round">
+            <div className="bm-head">
+              <span className="rc-code">{rid} (Semis)</span>
+              <span className="bm-count">
+                {(semiVotes || []).filter(v => v.round_id === rid).length} / {pairs.reduce((sum, p) => sum + judgesForR4Room(p.room).length, 0)}
+              </span>
+            </div>
+            {pairs.map(p => {
+              const codes = judgesForR4Room(p.room)
+              const voted = new Set((semiVotes || []).filter(v => v.round_id === rid && v.room === p.room).map(v => v.judge_code))
+              return (
+                <div key={p.id} className="bm-semi-block">
+                  <div className="bm-semi-hd">
+                    Room #{p.room} · Panel {panelForRoom[p.room]} · {p.aff_code} vs {p.opp_code}
+                    <span className="bm-count">{voted.size} / {codes.length}</span>
+                  </div>
+                  <div className="bm-grid bm-grid-tight">
+                    {codes.sort((a, b) => (parseInt(a.replace(/^J/, ''), 10) || 0) - (parseInt(b.replace(/^J/, ''), 10) || 0)).map(c => (
+                      <div key={c} className={`bm-cell tight ${voted.has(c) ? 'in' : 'pending'}`}
+                           title={`${c} · ${voted.has(c) ? 'voted' : 'not yet'}`}>
+                        <span className="bm-judge">{c}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )
+      })}
+
+      {/* R5 final — one cell per judge */}
+      {['R5'].map(rid => {
+        const pairs = pairingsByRound[rid] || []
+        if (pairs.length === 0) return null
+        const p = pairs[0]
+        const voted = new Set((semiVotes || []).filter(v => v.round_id === rid && v.room === 1).map(v => v.judge_code))
+        return (
+          <div key={rid} className="bm-round">
+            <div className="bm-head">
+              <span className="rc-code">{rid} (Final)</span>
+              <span className="bm-count">{voted.size} / {finalPanelCodes.length}</span>
+            </div>
+            <div className="bm-semi-block">
+              <div className="bm-semi-hd">
+                Room #1 · Amphitheatre · {p.aff_code} vs {p.opp_code}
+                <span className="bm-count">{voted.size} / {finalPanelCodes.length}</span>
+              </div>
+              <div className="bm-grid bm-grid-tight">
+                {finalPanelCodes.sort((a, b) => (parseInt(a.replace(/^J/, ''), 10) || 0) - (parseInt(b.replace(/^J/, ''), 10) || 0)).map(c => (
+                  <div key={c} className={`bm-cell tight ${voted.has(c) ? 'in' : 'pending'}`}
+                       title={`${c} · ${voted.has(c) ? 'voted' : 'not yet'}`}>
+                    <span className="bm-judge">{c}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )
