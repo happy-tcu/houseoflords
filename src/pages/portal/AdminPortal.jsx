@@ -1938,7 +1938,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
             <div key={a} className="stat-mini">
               <div className="stat-mini-hd">{AXIS_LABEL[a]}</div>
               {axisTop[a].slice(0, 3).map((s, i) => (
-                <div key={s.code} className="stat-mini-row">
+                <div key={s.code} className="stat-mini-row clickable" onClick={() => setDrilldown({ kind: 'scholar', code: s.code })}>
                   <span className="rk">{i+1}</span>
                   <span className="cd">{s.code}</span>
                   <span className="nm">{s.name || '—'}</span>
@@ -2026,19 +2026,21 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
       <section className="ss">
         <div className="ss-hd"><h3>Judge lean</h3><span>Fraction of decisions where they picked Prop (0.5 = balanced)</span></div>
         <BarList items={judgeStats.slice().sort((a, b) => b.propLean - a.propLean).map(j => ({
+          code: j.code,
           label: `${j.code} · ${j.name || '—'}`,
           value: +j.propLean.toFixed(2), max: 1, sub: `${j.propPicks} Prop / ${j.oppPicks} Opp`,
-        }))} color="#7c5cff" />
+        }))} color="#7c5cff" onItemClick={x => setDrilldown({ kind: 'judge', code: x.code })} />
       </section>
 
       {/* JUDGE FEEDBACK DENSITY */}
       <section className="ss">
         <div className="ss-hd"><h3>Note-writers</h3><span>Judges by average note length (chars) + speech-note fill rate</span></div>
         <BarList items={judgeStats.slice().sort((a, b) => b.avgNoteLen - a.avgNoteLen).slice(0, 15).map(j => ({
+          code: j.code,
           label: `${j.code} · ${j.name || '—'}`,
           value: Math.round(j.avgNoteLen), max: Math.max(...judgeStats.map(x => x.avgNoteLen)) || 1,
           sub: `flow: ${Math.round(j.speechFillRate * 100)}%`,
-        }))} color="#2b2c2d" />
+        }))} color="#2b2c2d" onItemClick={x => setDrilldown({ kind: 'judge', code: x.code })} />
       </section>
 
       {/* MOTION KIND WINRATE */}
@@ -2115,9 +2117,10 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
       <section className="ss">
         <div className="ss-hd"><h3>Comeback of the day</h3><span>Biggest jump from R1 to R3</span></div>
         <BarList items={stories.comebacks.slice(0, 5).map(s => ({
+          code: s.code,
           label: `${s.code} · ${s.name || '—'}`,
           value: s.delta, max: 20, sub: `R1 ${s.rounds.R1?.total} → R3 ${s.rounds.R3?.total}`, badge: s.class,
-        }))} color="#8cc63e" />
+        }))} color="#8cc63e" onItemClick={x => setDrilldown({ kind: 'scholar', code: x.code })} />
       </section>
 
       {/* STORY: CLUTCH */}
@@ -2125,7 +2128,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
         <div className="ss-hd"><h3>Clutch performances</h3><span>Rooms decided by the tightest margins</span></div>
         <div className="stat-list">
           {stories.clutch.map((c, i) => (
-            <div key={i} className="stat-clutch-row">
+            <div key={i} className="stat-clutch-row clickable" onClick={() => setDrilldown({ kind: "scholar", code: c.winnerCode })}>
               <span className="stat-clutch-round">{c.round}</span>
               <span>Room #{c.room}</span>
               <span className="stat-clutch-margin">by {c.spread} pt{c.spread === 1 ? '' : 's'}</span>
@@ -2140,7 +2143,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
         <div className="ss-hd"><h3>Domination matches</h3><span>Biggest total-score gaps (non-forfeit)</span></div>
         <div className="stat-list">
           {stories.domination.map((c, i) => (
-            <div key={i} className="stat-clutch-row">
+            <div key={i} className="stat-clutch-row clickable" onClick={() => setDrilldown({ kind: "scholar", code: c.winnerCode })}>
               <span className="stat-clutch-round">{c.round}</span>
               <span>Room #{c.room}</span>
               <span className="stat-clutch-margin domination">gap {c.spread} pts</span>
@@ -2155,7 +2158,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
         <div className="ss-hd"><h3>Best single-round performances</h3><span>Highest /20 in one round</span></div>
         <div className="stat-list">
           {stories.bestSingle.map((s, i) => (
-            <div key={i} className="stat-clutch-row">
+            <div key={i} className="stat-clutch-row clickable" onClick={() => setDrilldown({ kind: "scholar", code: s.code })}>
               <span className="stat-clutch-round">{s.round}</span>
               <span>{s.code} · {s.name || '—'}</span>
               <span className="stat-clutch-margin domination">{s.total}/20</span>
@@ -2171,7 +2174,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
           <div className="ss-hd"><h3>Perfect 20s</h3><span>Speakers who scored 5/5/5/5 in a single round</span></div>
           <div className="stat-list">
             {stories.grandSlams.map((s, i) => (
-              <div key={i} className="stat-clutch-row">
+              <div key={i} className="stat-clutch-row clickable" onClick={() => setDrilldown({ kind: "scholar", code: s.code })}>
                 <span className="stat-clutch-round">{s.round}</span>
                 <span>{s.code} · {s.name || '—'}</span>
                 <span className="stat-clutch-margin domination">perfect 20/20</span>
@@ -2187,7 +2190,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
           <div className="ss-hd"><h3>Reversal watch</h3><span>Rooms where the winner had fewer total points (judgment call)</span></div>
           <div className="stat-list">
             {stories.reversals.map((c, i) => (
-              <div key={i} className="stat-clutch-row">
+              <div key={i} className="stat-clutch-row clickable" onClick={() => setDrilldown({ kind: "scholar", code: c.winnerCode })}>
                 <span className="stat-clutch-round">{c.round}</span>
                 <span>Room #{c.room}</span>
                 <span>{c.winnerCode} won · but pts were {c.aff}–{c.opp}</span>
@@ -2203,7 +2206,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
           <div className="ss-hd"><h3>3-0 sweepers</h3><span>Speakers who won all 3 prelim rounds</span></div>
           <div className="stat-list">
             {stories.streaks.map((s, i) => (
-              <div key={i} className="stat-clutch-row">
+              <div key={i} className="stat-clutch-row clickable" onClick={() => setDrilldown({ kind: "scholar", code: s.code })}>
                 <span className="stat-clutch-round">3-0</span>
                 <span>{s.code} · {s.name || '—'}</span>
                 <span>{s.grandTotal} pts</span>
@@ -2218,7 +2221,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
         <div className="ss-hd"><h3>Should-have-been-champion</h3><span>Highest cumulative points who didn't make the final</span></div>
         <div className="stat-list">
           {stories.shouldHave.map((s, i) => (
-            <div key={i} className="stat-clutch-row">
+            <div key={i} className="stat-clutch-row clickable" onClick={() => setDrilldown({ kind: "scholar", code: s.code })}>
               <span className="stat-clutch-round">#{i+1}</span>
               <span>{s.code} · {s.name || '—'}</span>
               <span className="stat-clutch-margin">{s.grandTotal} pts · {s.wins}W</span>
@@ -2295,22 +2298,24 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
       <section className="ss">
         <div className="ss-hd"><h3>Prop vs Opp balance</h3><span>How often each top-10 speaker debated Prop vs Opp — did the draw favor anyone?</span></div>
         <BarList items={top10Total.slice(0, 10).map(s => ({
+          code: s.code,
           label: `${s.code} · ${s.name || '—'}`,
           value: s.propRounds,
           max: s.propRounds + s.oppRounds,
           sub: `${s.propRounds} Prop / ${s.oppRounds} Opp`,
-        }))} color="#1dafec" />
+        }))} color="#1dafec" onItemClick={x => setDrilldown({ kind: 'scholar', code: x.code })} />
       </section>
 
       {/* CONSISTENCY INDEX (stddev) */}
       <section className="ss">
         <div className="ss-hd"><h3>Steadiest speakers</h3><span>Lowest score variance across R1–R3 (top 10 by total, sorted by consistency)</span></div>
         <BarList items={top10Total.slice().sort((a, b) => a.stddev - b.stddev).map(s => ({
+          code: s.code,
           label: `${s.code} · ${s.name || '—'}`,
           value: +s.stddev.toFixed(2),
           max: Math.max(...top10Total.map(x => x.stddev)) || 1,
           sub: `avg ${s.avg.toFixed(1)}/20 · rounds: ${s.trajectory.map(t => t ?? '—').join('/')}`,
-        }))} color="#7c5cff" />
+        }))} color="#7c5cff" onItemClick={x => setDrilldown({ kind: 'scholar', code: x.code })} />
       </section>
 
       {/* POINT SPREAD DISTRIBUTION */}
@@ -2368,7 +2373,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
               return t > (best.t ?? -1) ? { r, t } : best
             }, { r: '—', t: null })
             return (
-              <div key={s.code} className="stat-clutch-row">
+              <div key={s.code} className="stat-clutch-row clickable" onClick={() => setDrilldown({ kind: "scholar", code: s.code })}>
                 <span className="stat-clutch-round">{peak.r}</span>
                 <span>{s.code} · {s.name || '—'}</span>
                 <span className="stat-clutch-margin domination">{peak.t ?? '—'}/20</span>
@@ -2390,7 +2395,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
             const bestAxisIdx = totals.indexOf(max)
             return { ...s, axisTotals: totals, spread: max - min, best: AXES[bestAxisIdx] }
           }).sort((a, b) => b.spread - a.spread).slice(0, 5).map(s => (
-            <div key={s.code} className="stat-clutch-row">
+            <div key={s.code} className="stat-clutch-row clickable" onClick={() => setDrilldown({ kind: "scholar", code: s.code })}>
               <span className="stat-clutch-round">{AXIS_LABEL[s.best]}</span>
               <span>{s.code} · {s.name || '—'}</span>
               <span className="stat-clutch-margin domination">Δ {s.spread} pts</span>
@@ -2408,7 +2413,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
             const fivesCount = Object.values(s.rounds).reduce((n, r) => n + r.scores.filter(x => x === 5).length, 0)
             return { ...s, fivesCount }
           }).filter(s => s.fivesCount > 0).sort((a, b) => b.fivesCount - a.fivesCount).slice(0, 10).map(s => (
-            <div key={s.code} className="stat-clutch-row">
+            <div key={s.code} className="stat-clutch-row clickable" onClick={() => setDrilldown({ kind: "scholar", code: s.code })}>
               <span className="stat-clutch-round">×{s.fivesCount}</span>
               <span>{s.code} · {s.name || '—'}</span>
               <span className="stat-clutch-margin domination">{s.fivesCount} five{s.fivesCount === 1 ? '' : 's'}</span>
@@ -2423,7 +2428,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
         <div className="ss-hd"><h3>The reliable ones</h3><span>Speakers who never scored below 12/20 in any round</span></div>
         <div className="stat-list">
           {scholarList.filter(s => s.totals.length >= 3 && s.totals.every(t => t >= 12)).sort((a, b) => Math.min(...b.totals) - Math.min(...a.totals) || b.grandTotal - a.grandTotal).map(s => (
-            <div key={s.code} className="stat-clutch-row">
+            <div key={s.code} className="stat-clutch-row clickable" onClick={() => setDrilldown({ kind: "scholar", code: s.code })}>
               <span className="stat-clutch-round">floor {Math.min(...s.totals)}</span>
               <span>{s.code} · {s.name || '—'}</span>
               <span className="stat-clutch-margin domination">{s.grandTotal} pts</span>
@@ -2441,7 +2446,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
           return (
             <div className="stat-list">
               {judgeStats.slice().sort((a, b) => Math.abs(b.avgScore - tournamentAvg) - Math.abs(a.avgScore - tournamentAvg)).slice(0, 10).map(j => (
-                <div key={j.code} className="stat-clutch-row">
+                <div key={j.code} className="stat-clutch-row clickable" onClick={() => setDrilldown({ kind: "judge", code: j.code })}>
                   <span className="stat-clutch-round">{j.code}</span>
                   <span>{j.name || '—'}</span>
                   <span className="stat-clutch-margin domination">Δ {(j.avgScore - tournamentAvg > 0 ? '+' : '')}{(j.avgScore - tournamentAvg).toFixed(2)}</span>
@@ -2460,8 +2465,8 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
           const matches = j.ballots.filter(x => !x.forfeit && ((x.affTotal > x.oppTotal && x.winner === 'aff') || (x.oppTotal > x.affTotal && x.winner === 'opp'))).length
           const nonForfeit = j.ballots.filter(x => !x.forfeit && x.affTotal !== x.oppTotal).length
           const pct = nonForfeit ? matches / nonForfeit : 1
-          return { label: `${j.code} · ${j.name || '—'}`, value: +(pct * 100).toFixed(0), max: 100, sub: `${matches}/${nonForfeit} decisive` }
-        }).sort((a, b) => a.value - b.value)} color="#efb34a" />
+          return { code: j.code, label: `${j.code} · ${j.name || '—'}`, value: +(pct * 100).toFixed(0), max: 100, sub: `${matches}/${nonForfeit} decisive` }
+        }).sort((a, b) => a.value - b.value)} color="#efb34a" onItemClick={x => setDrilldown({ kind: 'judge', code: x.code })} />
       </section>
 
       {/* CLASS BALANCE (within-class variance) */}
@@ -2512,7 +2517,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
           return (
             <div className="stat-list">
               {outsiders.map((s, i) => (
-                <div key={s.code} className="stat-clutch-row">
+                <div key={s.code} className="stat-clutch-row clickable" onClick={() => setDrilldown({ kind: "scholar", code: s.code })}>
                   <span className="stat-clutch-round">#{i+1}</span>
                   <span>{s.code} · {s.name || '—'}</span>
                   <span className="stat-clutch-margin domination">{s.grandTotal} pts</span>
@@ -2534,7 +2539,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
             const opp = AXES.reduce((s, a) => s + (b[`opp_${a}`] || 0), 0)
             return { round: b.round_id, room: b.room, total: aff + opp, aff, opp, aff_code: pair?.aff_code, opp_code: pair?.opp_code, forfeit: !!b.forfeit_side }
           }).filter(x => !x.forfeit).sort((a, b) => b.total - a.total).slice(0, 5).map((r, i) => (
-            <div key={i} className="stat-clutch-row">
+            <div key={i} className="stat-clutch-row clickable" onClick={() => setDrilldown({ kind: "scholar", code: r.aff_code })}>
               <span className="stat-clutch-round">{r.round}</span>
               <span>Room #{r.room}</span>
               <span className="stat-clutch-margin domination">{r.total}/40</span>
@@ -2548,9 +2553,10 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
       <section className="ss">
         <div className="ss-hd"><h3>CX killers</h3><span>Best Rebuttal &amp; CX totals across R1–R3</span></div>
         <BarList items={axisTop.rebuttal.map(s => ({
+          code: s.code,
           label: `${s.code} · ${s.name || '—'}`,
           value: s.axisSum, max: 15, sub: `Class ${s.class}`,
-        }))} color="#b23" />
+        }))} color="#b23" onItemClick={x => setDrilldown({ kind: 'scholar', code: x.code })} />
       </section>
 
       {/* UNDERDOG (few wins, high total) */}
@@ -2561,7 +2567,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
           return (
             <div className="stat-list">
               {scholarList.filter(s => s.grandTotal >= meanTotal && s.wins <= 1).sort((a, b) => b.grandTotal - a.grandTotal).slice(0, 5).map((s, i) => (
-                <div key={s.code} className="stat-clutch-row">
+                <div key={s.code} className="stat-clutch-row clickable" onClick={() => setDrilldown({ kind: "scholar", code: s.code })}>
                   <span className="stat-clutch-round">#{i+1}</span>
                   <span>{s.code} · {s.name || '—'}</span>
                   <span className="stat-clutch-margin domination">{s.grandTotal} pts</span>
@@ -2583,7 +2589,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
             <div className="stat-list">
               {scholarList.filter(s => s.rounds.R1 && s.rounds.R3 && s.rounds.R1.total <= jitterThreshold && s.rounds.R3.total > s.rounds.R1.total)
                 .sort((a, b) => (b.rounds.R3.total - b.rounds.R1.total) - (a.rounds.R3.total - a.rounds.R1.total)).slice(0, 5).map(s => (
-                  <div key={s.code} className="stat-clutch-row">
+                  <div key={s.code} className="stat-clutch-row clickable" onClick={() => setDrilldown({ kind: "scholar", code: s.code })}>
                     <span className="stat-clutch-round">R1→R3</span>
                     <span>{s.code} · {s.name || '—'}</span>
                     <span className="stat-clutch-margin domination">+{s.rounds.R3.total - s.rounds.R1.total} pts</span>
@@ -2654,11 +2660,12 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
       <section className="ss">
         <div className="ss-hd"><h3>Judges who saw the most drama</h3><span>Highest score variance across their rooms — swings of judgment</span></div>
         <BarList items={judgeStats.slice().sort((a, b) => b.avgSpread - a.avgSpread).slice(0, 10).map(j => ({
+          code: j.code,
           label: `${j.code} · ${j.name || '—'}`,
           value: +j.avgSpread.toFixed(2),
           max: Math.max(...judgeStats.map(x => x.avgSpread)) || 1,
           sub: `range ${j.range} · ${j.ballots.length} rooms`,
-        }))} color="#b23" />
+        }))} color="#b23" onItemClick={x => setDrilldown({ kind: 'judge', code: x.code })} />
       </section>
 
       {/* CLASS CONTRIBUTION TO BRACKET */}
@@ -2859,22 +2866,26 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
 function StatCard({ k, v, sub }) {
   return <div className="s-card"><div className="s-k">{k}</div><div className="s-v">{v}</div>{sub && <div className="s-s">{sub}</div>}</div>
 }
-function BarList({ items, color = '#8cc63e' }) {
+function BarList({ items, color = '#8cc63e', onItemClick }) {
   const max = Math.max(1, ...items.map(x => x.max || x.value))
   return (
     <div className="s-bars">
-      {items.map((x, i) => (
-        <div key={i} className="s-bar-row">
-          <div className="s-bar-lbl">
-            <span>{x.label}</span>
-            {x.badge && <span className="s-bar-badge">{x.badge}</span>}
+      {items.map((x, i) => {
+        const clickable = !!(x.code && onItemClick)
+        return (
+          <div key={i} className={`s-bar-row ${clickable ? 'clickable' : ''}`}
+               onClick={clickable ? () => onItemClick(x) : undefined}>
+            <div className="s-bar-lbl">
+              <span>{x.label}</span>
+              {x.badge && <span className="s-bar-badge">{x.badge}</span>}
+            </div>
+            <div className="s-bar-track">
+              <div className="s-bar-fill" style={{ width: `${(x.value / max) * 100}%`, background: color }} />
+            </div>
+            <div className="s-bar-val">{x.value}{x.sub && <small> · {x.sub}</small>}</div>
           </div>
-          <div className="s-bar-track">
-            <div className="s-bar-fill" style={{ width: `${(x.value / max) * 100}%`, background: color }} />
-          </div>
-          <div className="s-bar-val">{x.value}{x.sub && <small> · {x.sub}</small>}</div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
