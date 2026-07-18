@@ -3135,3 +3135,182 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
   font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
   font-size: 17px; color: var(--brand-dark, #2b2c2d); line-height: 1.4;
 }
+
+/* ============ SEMI-PANEL VOTE (Judge) ============ */
+.semi-hero {
+  padding: 32px 0 24px;
+  border-bottom: 1.5px solid rgba(43,44,45,0.14);
+  margin-bottom: 24px;
+}
+.semi-hero .kicker {
+  display: block; margin-bottom: 8px;
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--brand-green-2, #7ab332);
+}
+.semi-hero h1 {
+  font-size: 72px; letter-spacing: -2px; line-height: 1;
+  margin: 0 0 14px 0;
+}
+.semi-hero-meta {
+  display: flex; gap: 12px; align-items: center;
+  font-family: 'Montserrat', sans-serif; font-weight: 700;
+  font-size: 11px; letter-spacing: 1.8px; text-transform: uppercase;
+  color: rgba(43,44,45,0.6);
+}
+.semi-hero-meta .dot { width: 4px; height: 4px; border-radius: 999px; background: currentColor; }
+.semi-motion-card {
+  padding: 22px 24px; margin-bottom: 24px;
+  background: var(--cream, #fbf7ee);
+  border: 1.5px solid var(--brand-dark, #2b2c2d);
+  position: relative;
+}
+.semi-motion-text {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic; font-weight: 700; font-size: 26px;
+  color: var(--brand-dark, #2b2c2d); line-height: 1.35;
+  margin: 10px 0 0;
+}
+.semi-motion-kind {
+  position: absolute; top: 22px; right: 24px;
+  padding: 3px 10px; border: 1.5px solid;
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+}
+.semi-motion-kind.kind-policy   { color: #1dafec; border-color: #1dafec; }
+.semi-motion-kind.kind-value    { color: #efb34a; border-color: #efb34a; }
+.semi-motion-kind.kind-metaphor { color: #8cc63e; border-color: #8cc63e; }
+
+.semi-tally {
+  padding: 20px 24px; margin-bottom: 24px;
+  background: #fff; border: 1.5px solid rgba(43,44,45,0.14);
+}
+.semi-tally-row {
+  display: grid; grid-template-columns: 120px 1fr 42px; gap: 14px;
+  align-items: center; margin-bottom: 12px;
+}
+.semi-tally-label {
+  font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 12px;
+  color: var(--brand-dark, #2b2c2d);
+}
+.semi-tally-label b { font-weight: 800; }
+.semi-tally-bar {
+  height: 14px; background: rgba(43,44,45,0.08);
+  border: 1.5px solid var(--brand-dark, #2b2c2d);
+  overflow: hidden;
+}
+.semi-tally-fill { height: 100%; transition: width 0.25s ease; }
+.semi-tally-fill.aff { background: #1dafec; }
+.semi-tally-fill.opp { background: #efb34a; }
+.semi-tally-count {
+  font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+  font-weight: 700; font-size: 26px; color: var(--brand-dark, #2b2c2d);
+  text-align: right;
+}
+.semi-tally-foot {
+  display: flex; gap: 14px; align-items: center; padding-top: 12px;
+  border-top: 1px dashed rgba(43,44,45,0.16);
+  font-family: 'Montserrat', sans-serif; font-weight: 700;
+  font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: rgba(43,44,45,0.6);
+}
+.semi-winner-tag {
+  margin-left: auto;
+  padding: 5px 12px;
+  background: var(--brand-green, #8cc63e); color: #fff;
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+}
+.semi-vote-buttons {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  margin-bottom: 24px;
+}
+.semi-vote-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  padding: 40px 24px;
+  border: 1.5px solid var(--brand-dark, #2b2c2d);
+  background: #fff; cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.semi-vote-btn:hover:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0 var(--brand-dark, #2b2c2d);
+}
+.semi-vote-btn.aff:hover:not(:disabled) { box-shadow: 8px 8px 0 #1dafec; }
+.semi-vote-btn.opp:hover:not(:disabled) { box-shadow: 8px 8px 0 #efb34a; }
+.semi-vote-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.semi-vote-side {
+  font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 11px;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: rgba(43,44,45,0.6);
+}
+.semi-vote-btn.aff .semi-vote-side { color: #1189c1; }
+.semi-vote-btn.opp .semi-vote-side { color: #a67628; }
+.semi-vote-code {
+  font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+  font-weight: 700; font-size: 64px; color: var(--brand-dark, #2b2c2d);
+  line-height: 1;
+}
+.semi-vote-cta {
+  font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 12px;
+  letter-spacing: 1.8px; text-transform: uppercase;
+  color: var(--brand-dark, #2b2c2d);
+}
+.semi-voted-card {
+  display: flex; align-items: center; gap: 18px;
+  padding: 22px 24px; margin-bottom: 24px;
+  background: var(--brand-green, #8cc63e); color: #fff;
+  border: 1.5px solid var(--brand-dark, #2b2c2d);
+}
+.semi-voted-check {
+  width: 48px; height: 48px; border-radius: 999px;
+  background: #fff; color: var(--brand-green, #8cc63e);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 800;
+}
+.semi-voted-card b {
+  display: block; font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 15px; letter-spacing: 0.5px;
+}
+.semi-voted-card span {
+  font-family: 'Open Sans', sans-serif; font-size: 13px; opacity: 0.9;
+}
+@media (max-width: 700px) {
+  .semi-hero h1 { font-size: 52px; }
+  .semi-vote-buttons { grid-template-columns: 1fr; }
+  .semi-vote-code { font-size: 48px; }
+}
+
+/* Semi-panel tally on Live Rooms card */
+.rm-semi-tally {
+  margin-top: 12px; padding: 10px 12px;
+  background: rgba(140,198,62,0.08);
+  border: 1.5px solid rgba(43,44,45,0.14);
+}
+.rm-semi-row {
+  display: grid; grid-template-columns: 60px 1fr 24px; gap: 8px;
+  align-items: center; margin-bottom: 6px;
+}
+.rm-semi-label {
+  font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 10px;
+  color: var(--brand-dark, #2b2c2d);
+}
+.rm-semi-bar {
+  height: 8px; background: rgba(43,44,45,0.1); border-radius: 999px;
+  overflow: hidden;
+}
+.rm-semi-bar .fill { display: block; height: 100%; transition: width 0.2s ease; }
+.rm-semi-bar .fill.aff { background: #1dafec; }
+.rm-semi-bar .fill.opp { background: #efb34a; }
+.rm-semi-count {
+  font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+  font-weight: 700; font-size: 16px; text-align: right;
+}
+.rm-semi-foot {
+  font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 10px;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: rgba(43,44,45,0.6);
+  margin-top: 4px; padding-top: 6px;
+  border-top: 1px dashed rgba(43,44,45,0.16);
+}
+.rm-semi-winner { color: var(--brand-green-2, #7ab332); }

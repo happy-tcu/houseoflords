@@ -50,8 +50,15 @@ export default function JudgePortal() {
   const { rows: pairings } = useRealtime('pairings', {}, [])
   const { rows: allMotions } = useRealtime('motions', {}, [])
   const { rows: ballots } = useRealtime('ballots', {}, [])
+  const { rows: semiPanels } = useRealtime('semi_panels', {}, [])
+  const { rows: semiVotes } = useRealtime('semi_votes', {}, [])
 
   const active = useMemo(() => (rounds || []).find(r => r.state !== 'locked' && r.state !== 'done'), [rounds])
+  const isSemiRound = active?.id === 'R4' || active?.id === 'R5'
+  const myPanel = useMemo(
+    () => (semiPanels || []).find(p => p.judge_code === profile?.code),
+    [semiPanels, profile?.code]
+  )
   const myAssignments = useMemo(
     () => (pairings || []).filter(p => p.judge_code === profile.code),
     [pairings, profile?.code]
@@ -135,6 +142,18 @@ export default function JudgePortal() {
   const roundMotions = active ? (allMotions || []).filter(m => m.round_id === active.id) : []
   const inStrikePhase = active && mine && active.state === 'prep' && !mine.final_motion_id && roundMotions.length > 0
   const total = (s) => AXES.reduce((sum, a) => sum + (Number(ballot[`${s}_${a.key}`]) || 0), 0)
+
+  // Semi-panel voting mode — 15 judges per Commons vote 1-click, majority wins.
+  if (isSemiRound && myPanel) {
+    return <SemiPanelVote
+      profile={profile}
+      active={active}
+      myPanel={myPanel}
+      pairings={pairings || []}
+      motions={allMotions || []}
+      semiVotes={semiVotes || []}
+    />
+  }
 
   return (
     <PortalShell title="Judge Console">
@@ -387,6 +406,120 @@ export default function JudgePortal() {
             })()
           )}
         </>
+      )}
+    </PortalShell>
+  )
+}
+
+/* ---------------- SEMI-PANEL VOTE ---------------- */
+function SemiPanelVote({ profile, active, myPanel, pairings, motions, semiVotes }) {
+  const room = myPanel.panel === 'A' ? 1 : 2
+  const semiNum = myPanel.panel === 'A' ? 1 : 2
+  const pairing = pairings.find(p => p.round_id === active.id && p.room === room)
+  const motion = pairing ? motions.find(m => m.id === (pairing.final_motion_id || pairing.motion_id)) : null
+
+  const myVote = semiVotes.find(v =>
+    v.judge_code === profile.code && v.round_id === active.id && v.room === room
+  )
+  const roomVotes = semiVotes.filter(v => v.round_id === active.id && v.room === room)
+  const affN = roomVotes.filter(v => v.vote === 'aff').length
+  const oppN = roomVotes.filter(v => v.vote === 'opp').length
+  const total = affN + oppN
+  const target = 15
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
+
+  async function cast(side) {
+    if (myVote || busy) return
+    setBusy(true); setErr(null)
+    const { error } = await supabase.from('semi_votes').insert({
+      judge_code: profile.code,
+      round_id: active.id,
+      room,
+      vote: side,
+    })
+    setBusy(false)
+    if (error) setErr(error.message)
+  }
+
+  const decided = affN >= 8 || oppN >= 8
+  const winner = affN > oppN ? 'aff' : oppN > affN ? 'opp' : null
+
+  return (
+    <PortalShell title="Judge Console">
+      <div className="semi-hero">
+        <span className="kicker">Panel {myPanel.panel} · {myPanel.location}</span>
+        <h1 className="editorial-title">Semi {semiNum}.</h1>
+        <div className="semi-hero-meta">
+          <span>{profile?.code}</span>
+          <span className="dot" />
+          <span>{profile?.name}</span>
+          <span className="dot" />
+          <span>1 vote · majority wins</span>
+        </div>
+      </div>
+
+      {pairing ? (
+        <>
+          <div className="semi-motion-card">
+            <span className="kicker">The motion</span>
+            <p className="semi-motion-text">
+              {motion?.text || 'Motion not yet released. Wait for the striking to finish.'}
+            </p>
+            {motion?.kind && <span className={`semi-motion-kind kind-${motion.kind.toLowerCase()}`}>{motion.kind}</span>}
+          </div>
+
+          <div className="semi-tally">
+            <div className="semi-tally-row">
+              <div className="semi-tally-label"><b>Prop</b> · {pairing.aff_code}</div>
+              <div className="semi-tally-bar"><div className="semi-tally-fill aff" style={{ width: `${(affN / target) * 100}%` }} /></div>
+              <div className="semi-tally-count">{affN}</div>
+            </div>
+            <div className="semi-tally-row">
+              <div className="semi-tally-label"><b>Opp</b> · {pairing.opp_code}</div>
+              <div className="semi-tally-bar"><div className="semi-tally-fill opp" style={{ width: `${(oppN / target) * 100}%` }} /></div>
+              <div className="semi-tally-count">{oppN}</div>
+            </div>
+            <div className="semi-tally-foot">
+              {total} of {target} votes in
+              {decided && winner && (
+                <span className="semi-winner-tag">
+                  Winner: {winner === 'aff' ? `Prop · ${pairing.aff_code}` : `Opp · ${pairing.opp_code}`}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {err && <div className="portal-msg">Error: {err}</div>}
+
+          {myVote ? (
+            <div className="semi-voted-card">
+              <div className="semi-voted-check">✓</div>
+              <div>
+                <b>You voted {myVote.vote === 'aff' ? `Prop · ${pairing.aff_code}` : `Opp · ${pairing.opp_code}`}</b>
+                <span>Locked in. Waiting on {target - total} more judges.</span>
+              </div>
+            </div>
+          ) : (
+            <div className="semi-vote-buttons">
+              <button className="semi-vote-btn aff" disabled={busy || !motion} onClick={() => cast('aff')}>
+                <span className="semi-vote-side">PROP</span>
+                <span className="semi-vote-code">{pairing.aff_code}</span>
+                <span className="semi-vote-cta">Cast vote</span>
+              </button>
+              <button className="semi-vote-btn opp" disabled={busy || !motion} onClick={() => cast('opp')}>
+                <span className="semi-vote-side">OPP</span>
+                <span className="semi-vote-code">{pairing.opp_code}</span>
+                <span className="semi-vote-cta">Cast vote</span>
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="portal-empty">
+          <b>No matchup ready yet.</b>
+          <span>Semi {semiNum} pairing not yet published. Admin builds it after prelims close.</span>
+        </div>
       )}
     </PortalShell>
   )

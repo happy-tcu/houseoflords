@@ -279,6 +279,7 @@ function NowTab({ rounds, pairings, ballots }) {
 function LiveRoomsTab({ rounds, pairings, motions, ballots }) {
   useTick(500)
   const { rows: drafts } = useRealtime('ballot_drafts', {}, [])
+  const { rows: semiVotes } = useRealtime('semi_votes', {}, [])
   const [filterR, setFilterR] = useState('all')
   const [q, setQ] = useState('')
 
@@ -313,7 +314,9 @@ function LiveRoomsTab({ rounds, pairings, motions, ballots }) {
               {pp.sort((a,b) => a.room - b.room).map(p => (
                 <RoomCard key={p.id} pairing={p} roundMotions={roundMotions}
                           ballot={ballots.find(b => b.round_id === r.id && b.room === p.room)}
-                          hasDraft={(drafts || []).some(d => d.round_id === r.id && d.room === p.room)} />
+                          hasDraft={(drafts || []).some(d => d.round_id === r.id && d.room === p.room)}
+                          semiVotes={(semiVotes || []).filter(v => v.round_id === r.id && v.room === p.room)}
+                          isSemi={r.id === 'R4' || r.id === 'R5'} />
               ))}
             </div>
           </div>
@@ -323,7 +326,7 @@ function LiveRoomsTab({ rounds, pairings, motions, ballots }) {
   )
 }
 
-function RoomCard({ pairing, roundMotions, ballot, hasDraft, allJudges }) {
+function RoomCard({ pairing, roundMotions, ballot, hasDraft, allJudges, semiVotes = [], isSemi = false }) {
   const seg = SEGMENT_MAP[pairing.segment] || SEGMENT_MAP.idle
   const remaining = computeRemaining(pairing.segment_ends_at)
   const finalMotion = roundMotions.find(m => m.id === pairing.final_motion_id)
@@ -399,6 +402,31 @@ function RoomCard({ pairing, roundMotions, ballot, hasDraft, allJudges }) {
           Record forfeit ballot →
         </button>
       )}
+      {isSemi && (() => {
+        const affN = semiVotes.filter(v => v.vote === 'aff').length
+        const oppN = semiVotes.filter(v => v.vote === 'opp').length
+        const total = affN + oppN
+        const decided = affN >= 8 || oppN >= 8
+        const winner = affN > oppN ? 'aff' : oppN > affN ? 'opp' : null
+        return (
+          <div className="rm-semi-tally">
+            <div className="rm-semi-row">
+              <span className="rm-semi-label">Prop {pairing.aff_code}</span>
+              <span className="rm-semi-bar"><span className="fill aff" style={{ width: `${(affN/15)*100}%` }} /></span>
+              <span className="rm-semi-count">{affN}</span>
+            </div>
+            <div className="rm-semi-row">
+              <span className="rm-semi-label">Opp {pairing.opp_code}</span>
+              <span className="rm-semi-bar"><span className="fill opp" style={{ width: `${(oppN/15)*100}%` }} /></span>
+              <span className="rm-semi-count">{oppN}</span>
+            </div>
+            <div className="rm-semi-foot">
+              {total}/15 votes
+              {decided && winner && <b className="rm-semi-winner"> · Winner: {winner === 'aff' ? pairing.aff_code : pairing.opp_code}</b>}
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
