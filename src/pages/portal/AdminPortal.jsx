@@ -1392,6 +1392,26 @@ function FeedbackPreviewTab({ pairings, ballots, rounds, motions }) {
                             <div className="dp-note">"{myNote}"</div>
                           </div>
                         )}
+                        {(() => {
+                          // Filter speech notes to those attributed to this scholar's side.
+                          const mine_speeches = mySide === 'aff'
+                            ? [['prop_const', 'Prop constructive'], ['prop_rebut', 'Prop rebuttal'], ['prop_close', 'Prop closing']]
+                            : [['opp_open', 'Opp opening'], ['opp_close', 'Opp closing']]
+                          const notes = b.speech_notes || {}
+                          const filled = mine_speeches.filter(([k]) => notes[k])
+                          if (filled.length === 0) return null
+                          return (
+                            <div className="fp-speech-block">
+                              <span className="dp-note-label">Judge's flow — what {scholarCode} said</span>
+                              {filled.map(([k, label]) => (
+                                <div key={k} className="fp-speech-item">
+                                  <b>{label}</b>
+                                  <span>{notes[k]}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        })()}
                       </div>
                     )}
                   </div>
