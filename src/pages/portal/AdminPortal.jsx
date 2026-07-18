@@ -57,6 +57,7 @@ export default function AdminPortal() {
           ['motions', 'Round Motions'],
           ['ballots', 'Ballot Tracker'],
           ['feedback','Feedback Preview'],
+          ['stats',   'Tournament Stats'],
           ['standings','Standings'],
           ['broadcast','Announcements'],
           ['certs',   'Certificates'],
@@ -78,6 +79,8 @@ export default function AdminPortal() {
                                        ballotsByRound={ballotsByRound} />}
       {tab === 'feedback' && <FeedbackPreviewTab pairings={pairings || []} ballots={ballots || []}
                                                   rounds={rounds || []} motions={motions || []} />}
+      {tab === 'stats'    && <StatsTab pairings={pairings || []} ballots={ballots || []}
+                                        rounds={rounds || []} motions={motions || []} />}
       {tab === 'standings' && <StandingsTab pairings={pairings || []} ballots={ballots || []} />}
       {tab === 'broadcast' && <BroadcastTab announcements={announcements || []} onMsg={setMsg} />}
       {tab === 'certs'     && <CertificatesTab onMsg={setMsg} />}
@@ -1512,6 +1515,813 @@ function FeedbackPreviewTab({ pairings, ballots, rounds, motions }) {
           )}
         </>
       )}
+    </div>
+  )
+}
+
+/* ---------------- TOURNAMENT STATS (many charts) ---------------- */
+function StatsTab({ pairings, ballots, rounds, motions }) {
+  const { rows: allowed } = useRealtime('allowed_users', {}, [])
+  const { rows: semiVotes } = useRealtime('semi_votes', {}, [])
+
+  const PRELIMS = ['R1','R2','R3']
+  const AXES = ['argument','rebuttal','delivery','persuasion']
+  const AXIS_LABEL = { argument: 'Argument', rebuttal: 'Rebuttal & CX', delivery: 'Delivery', persuasion: 'Persuasion' }
+  const scholars = useMemo(() => (allowed || []).filter(u => u.role === 'scholar'), [allowed])
+  const judges   = useMemo(() => (allowed || []).filter(u => u.role === 'judge'), [allowed])
+  const nameByCode = useMemo(() => { const m = {}; for (const u of allowed || []) if (u.code) m[u.code] = u.name; return m }, [allowed])
+  const classOf = (code) => code?.charAt(0) || '?'
+  const prelimBallots = useMemo(() => (ballots || []).filter(b => PRELIMS.includes(b.round_id)), [ballots])
+  const prelimPairings = useMemo(() => (pairings || []).filter(p => PRELIMS.includes(p.round_id)), [pairings])
+
+  // Speaker stats: for each speaker, per axis + total per round
+  const speakerStats = useMemo(() => {
+    const s = {}
+    for (const b of prelimBallots) {
+      const pair = prelimPairings.find(p => p.round_id === b.round_id && p.room === b.room)
+      if (!pair) continue
+      for (const side of ['aff','opp']) {
+        const code = side === 'aff' ? pair.aff_code : pair.opp_code
+        if (!code) continue
+        s[code] ||= { code, class: classOf(code), rounds: {}, totals: [], perAxis: { argument:[], rebuttal:[], delivery:[], persuasion:[] }, wins: 0, losses: 0, propRounds: 0, oppRounds: 0, forfeits: 0 }
+        const total = AXES.reduce((sum, a) => sum + (b[`${side}_${a}`] || 0), 0)
+        s[code].rounds[b.round_id] = { total, scores: AXES.map(a => b[`${side}_${a}`] || 0), won: b.winner === side, forfeit: b.forfeit_side === side }
+        s[code].totals.push(total)
+        for (const a of AXES) s[code].perAxis[a].push(b[`${side}_${a}`] || 0)
+        if (b.winner === side) s[code].wins++
+        else s[code].losses++
+        if (side === 'aff') s[code].propRounds++
+        else s[code].oppRounds++
+        if (b.forfeit_side === side) s[code].forfeits++
+      }
+    }
+    for (const c of Object.keys(s)) {
+      const st = s[c]
+      st.grandTotal = st.totals.reduce((a, b) => a + b, 0)
+      st.avg = st.totals.length ? st.grandTotal / st.totals.length : 0
+      st.stddev = st.totals.length > 1
+        ? Math.sqrt(st.totals.map(v => (v - st.avg) ** 2).reduce((a, b) => a + b, 0) / st.totals.length)
+        : 0
+      st.name = nameByCode[st.code] || ''
+      st.trajectory = PRELIMS.map(r => st.rounds[r]?.total ?? null)
+    }
+    return s
+  }, [prelimBallots, prelimPairings, nameByCode])
+
+  const scholarList = useMemo(() => Object.values(speakerStats), [speakerStats])
+
+  // Top 10 speakers by total points
+  const top10Total = useMemo(() => scholarList.slice().sort((a,b) => b.grandTotal - a.grandTotal || b.wins - a.wins).slice(0, 10), [scholarList])
+
+  // Best per axis (top 5 by total axis score across 3 rounds)
+  const axisTop = useMemo(() => {
+    const out = {}
+    for (const a of AXES) {
+      out[a] = scholarList.slice().sort((x, y) => {
+        const xs = x.perAxis[a].reduce((s, n) => s + n, 0)
+        const ys = y.perAxis[a].reduce((s, n) => s + n, 0)
+        return ys - xs
+      }).slice(0, 5).map(sp => ({ ...sp, axisSum: sp.perAxis[a].reduce((s, n) => s + n, 0) }))
+    }
+    return out
+  }, [scholarList])
+
+  // Score distribution histogram (per-round /20 scores)
+  const scoreDist = useMemo(() => {
+    const bins = new Array(21).fill(0)
+    for (const sp of scholarList) for (const t of sp.totals) bins[t]++
+    return bins
+  }, [scholarList])
+
+  // Prop vs Opp win rate
+  const sideWinRate = useMemo(() => {
+    let prop = 0, opp = 0, ff = 0
+    for (const b of prelimBallots) {
+      if (b.forfeit_side) ff++
+      if (b.winner === 'aff') prop++
+      else if (b.winner === 'opp') opp++
+    }
+    return { prop, opp, ff, total: prop + opp }
+  }, [prelimBallots])
+
+  // Class stats
+  const classStats = useMemo(() => {
+    const c = {}
+    for (const sp of scholarList) {
+      c[sp.class] ||= { class: sp.class, wins: 0, total: 0, count: 0, ballotsCount: 0, propWins: 0, oppWins: 0 }
+      c[sp.class].wins += sp.wins
+      c[sp.class].total += sp.grandTotal
+      c[sp.class].ballotsCount += sp.totals.length
+      c[sp.class].count++
+    }
+    for (const cls of Object.keys(c)) {
+      c[cls].avg = c[cls].ballotsCount ? c[cls].total / c[cls].ballotsCount : 0
+    }
+    return Object.values(c).sort((a, b) => b.wins - a.wins)
+  }, [scholarList])
+
+  // Class MVPs — top speaker per class
+  const classMVPs = useMemo(() => {
+    const by = {}
+    for (const sp of scholarList) {
+      if (!by[sp.class] || sp.grandTotal > by[sp.class].grandTotal) by[sp.class] = sp
+    }
+    return Object.values(by).sort((a, b) => a.class.localeCompare(b.class))
+  }, [scholarList])
+
+  // All-tournament team (top 6 by total, ignoring class)
+  const allTournamentTeam = useMemo(() => top10Total.slice(0, 6), [top10Total])
+
+  // Class vs class matchup matrix (6x6)
+  const classMatrix = useMemo(() => {
+    const grid = {}
+    for (const p of prelimPairings) {
+      const a = classOf(p.aff_code), o = classOf(p.opp_code)
+      const key = `${a}-${o}`
+      grid[key] = (grid[key] || 0) + 1
+    }
+    return grid
+  }, [prelimPairings])
+
+  // Judge stats
+  const judgeStats = useMemo(() => {
+    const j = {}
+    for (const b of prelimBallots) {
+      const jc = b.judge_code
+      j[jc] ||= { code: jc, ballots: [], propPicks: 0, oppPicks: 0, name: nameByCode[jc] || '' }
+      const affTotal = AXES.reduce((s, a) => s + (b[`aff_${a}`] || 0), 0)
+      const oppTotal = AXES.reduce((s, a) => s + (b[`opp_${a}`] || 0), 0)
+      j[jc].ballots.push({ affTotal, oppTotal, winner: b.winner, spread: Math.abs(affTotal - oppTotal), forfeit: !!b.forfeit_side, noteLen: (b.aff_note || '').length + (b.opp_note || '').length, speechNotes: b.speech_notes || {} })
+      if (b.winner === 'aff') j[jc].propPicks++
+      else if (b.winner === 'opp') j[jc].oppPicks++
+    }
+    for (const jc of Object.keys(j)) {
+      const st = j[jc]
+      const scores = st.ballots.flatMap(x => [x.affTotal, x.oppTotal])
+      st.avgScore = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
+      st.range = scores.length ? Math.max(...scores) - Math.min(...scores) : 0
+      st.avgSpread = st.ballots.length ? st.ballots.reduce((s, x) => s + x.spread, 0) / st.ballots.length : 0
+      st.propLean = st.propPicks + st.oppPicks > 0 ? st.propPicks / (st.propPicks + st.oppPicks) : 0.5
+      st.avgNoteLen = st.ballots.length ? st.ballots.reduce((s, x) => s + x.noteLen, 0) / st.ballots.length : 0
+      st.speechFillRate = st.ballots.reduce((s, x) => s + Object.values(x.speechNotes).filter(v => v && v.length).length, 0) / (st.ballots.length * 5)
+    }
+    return Object.values(j)
+  }, [prelimBallots, nameByCode])
+
+  // Motion stats — did surviving motions favor Prop or Opp?
+  const motionStats = useMemo(() => {
+    const m = {}
+    for (const p of prelimPairings) {
+      if (!p.final_motion_id) continue
+      const motion = (motions || []).find(mm => mm.id === p.final_motion_id)
+      if (!motion) continue
+      m[motion.id] ||= { id: motion.id, text: motion.text, kind: motion.kind, roundId: motion.round_id, survived: 0, propWins: 0, oppWins: 0, totalScore: 0, count: 0, spreads: [] }
+      m[motion.id].survived++
+      const b = prelimBallots.find(bb => bb.round_id === p.round_id && bb.room === p.room)
+      if (b) {
+        m[motion.id].count++
+        const aff = AXES.reduce((s, a) => s + (b[`aff_${a}`] || 0), 0)
+        const opp = AXES.reduce((s, a) => s + (b[`opp_${a}`] || 0), 0)
+        m[motion.id].totalScore += aff + opp
+        m[motion.id].spreads.push(Math.abs(aff - opp))
+        if (b.winner === 'aff') m[motion.id].propWins++
+        else if (b.winner === 'opp') m[motion.id].oppWins++
+      }
+    }
+    for (const mm of Object.values(m)) {
+      mm.avgScore = mm.count ? mm.totalScore / (mm.count * 2) : 0
+      mm.avgSpread = mm.spreads.length ? mm.spreads.reduce((a, b) => a + b, 0) / mm.spreads.length : 0
+    }
+    return Object.values(m)
+  }, [prelimPairings, motions, prelimBallots])
+
+  // Motion kind winrate
+  const kindStats = useMemo(() => {
+    const k = { Policy: { prop: 0, opp: 0, tot: 0, sumScore: 0, count: 0 }, Value: { prop: 0, opp: 0, tot: 0, sumScore: 0, count: 0 }, Metaphor: { prop: 0, opp: 0, tot: 0, sumScore: 0, count: 0 } }
+    for (const p of prelimPairings) {
+      if (!p.final_motion_id) continue
+      const motion = (motions || []).find(mm => mm.id === p.final_motion_id)
+      if (!motion || !k[motion.kind]) continue
+      const b = prelimBallots.find(bb => bb.round_id === p.round_id && bb.room === p.room)
+      if (b) {
+        k[motion.kind].tot++
+        if (b.winner === 'aff') k[motion.kind].prop++
+        else if (b.winner === 'opp') k[motion.kind].opp++
+        const aff = AXES.reduce((s, a) => s + (b[`aff_${a}`] || 0), 0)
+        const opp = AXES.reduce((s, a) => s + (b[`opp_${a}`] || 0), 0)
+        k[motion.kind].sumScore += aff + opp
+        k[motion.kind].count += 2
+      }
+    }
+    for (const kk of Object.keys(k)) k[kk].avgScore = k[kk].count ? k[kk].sumScore / k[kk].count : 0
+    return k
+  }, [prelimPairings, motions, prelimBallots])
+
+  // Round-level pacing
+  const roundStats = useMemo(() => {
+    const out = {}
+    for (const r of PRELIMS) {
+      const bs = prelimBallots.filter(b => b.round_id === r)
+      const scores = bs.flatMap(b => [
+        AXES.reduce((s, a) => s + (b[`aff_${a}`] || 0), 0),
+        AXES.reduce((s, a) => s + (b[`opp_${a}`] || 0), 0),
+      ])
+      const spreads = bs.map(b => {
+        const aff = AXES.reduce((s, a) => s + (b[`aff_${a}`] || 0), 0)
+        const opp = AXES.reduce((s, a) => s + (b[`opp_${a}`] || 0), 0)
+        return Math.abs(aff - opp)
+      })
+      out[r] = {
+        round: r,
+        ballots: bs.length,
+        avg: scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+        avgSpread: spreads.length ? spreads.reduce((a, b) => a + b, 0) / spreads.length : 0,
+        forfeits: bs.filter(b => b.forfeit_side).length,
+        propWins: bs.filter(b => b.winner === 'aff').length,
+        oppWins: bs.filter(b => b.winner === 'opp').length,
+        firstSubmit: bs.map(b => b.submitted_at).sort()[0],
+        lastSubmit: bs.map(b => b.submitted_at).sort().slice(-1)[0],
+      }
+    }
+    return out
+  }, [prelimBallots])
+
+  // Storytelling stats
+  const stories = useMemo(() => {
+    // Comeback: biggest R1 → R3 growth
+    const comebacks = scholarList
+      .filter(s => s.rounds.R1 && s.rounds.R3)
+      .map(s => ({ ...s, delta: (s.rounds.R3.total - s.rounds.R1.total) }))
+      .sort((a, b) => b.delta - a.delta)
+    // Clutch: smallest winning margin
+    const clutchBallots = prelimBallots.map(b => {
+      const aff = AXES.reduce((s, a) => s + (b[`aff_${a}`] || 0), 0)
+      const opp = AXES.reduce((s, a) => s + (b[`opp_${a}`] || 0), 0)
+      const pair = prelimPairings.find(p => p.round_id === b.round_id && p.room === b.room)
+      return { round: b.round_id, room: b.room, aff, opp, spread: Math.abs(aff - opp), winnerCode: b.winner === 'aff' ? pair?.aff_code : pair?.opp_code, loserCode: b.winner === 'aff' ? pair?.opp_code : pair?.aff_code, forfeit: !!b.forfeit_side }
+    }).filter(x => !x.forfeit)
+    const clutch = clutchBallots.slice().sort((a, b) => a.spread - b.spread).slice(0, 5)
+    const domination = clutchBallots.slice().sort((a, b) => b.spread - a.spread).slice(0, 5)
+    // Reversals: winner had lower total
+    const reversals = clutchBallots.filter(x => x.winnerCode && ((x.winnerCode === (prelimPairings.find(p => p.round_id === x.round && p.room === x.room)?.aff_code) && x.aff < x.opp) || (x.winnerCode !== (prelimPairings.find(p => p.round_id === x.round && p.room === x.room)?.aff_code) && x.opp < x.aff)))
+    // Highest single-round score
+    const bestSingle = scholarList.flatMap(s => Object.entries(s.rounds).map(([r, d]) => ({ code: s.code, name: s.name, round: r, ...d }))).sort((a, b) => b.total - a.total).slice(0, 5)
+    // "Grand slam" = 20/20 (all 5s)
+    const grandSlams = scholarList.flatMap(s => Object.entries(s.rounds).filter(([_, d]) => d.total === 20).map(([r, d]) => ({ code: s.code, name: s.name, round: r })))
+    // Should-have-been-champion = highest total not in R5 pairing
+    const finalCodes = new Set([(pairings || []).find(p => p.round_id === 'R5')?.aff_code, (pairings || []).find(p => p.round_id === 'R5')?.opp_code].filter(Boolean))
+    const shouldHave = scholarList.slice().filter(s => !finalCodes.has(s.code)).sort((a, b) => b.grandTotal - a.grandTotal).slice(0, 3)
+    // Streaker: longest win streak (out of 3)
+    const streaks = scholarList.map(s => {
+      const results = PRELIMS.map(r => s.rounds[r]?.won)
+      let max = 0, cur = 0
+      for (const w of results) { if (w) { cur++; max = Math.max(max, cur) } else cur = 0 }
+      return { ...s, streak: max }
+    }).filter(s => s.streak >= 3)
+    return { comebacks, clutch, domination, reversals, bestSingle, grandSlams, shouldHave, streaks }
+  }, [scholarList, prelimBallots, prelimPairings, pairings])
+
+  // Semi/final vote analytics
+  const semiStats = useMemo(() => {
+    const rooms = {}
+    for (const room of [1, 2]) {
+      const votes = (semiVotes || []).filter(v => v.round_id === 'R4' && v.room === room)
+      const aff = votes.filter(v => v.vote === 'aff').length
+      const opp = votes.filter(v => v.vote === 'opp').length
+      rooms[room] = { room, aff, opp, gap: Math.abs(aff - opp), total: aff + opp }
+    }
+    const finalVotes = (semiVotes || []).filter(v => v.round_id === 'R5')
+    const finalAff = finalVotes.filter(v => v.vote === 'aff').length
+    const finalOpp = finalVotes.filter(v => v.vote === 'opp').length
+    return { rooms, final: { aff: finalAff, opp: finalOpp, gap: Math.abs(finalAff - finalOpp), total: finalAff + finalOpp } }
+  }, [semiVotes])
+
+  // Champion / Runner-up journey
+  const championJourney = useMemo(() => {
+    const finalPair = (pairings || []).find(p => p.round_id === 'R5')
+    if (!finalPair) return null
+    const finalVotes = (semiVotes || []).filter(v => v.round_id === 'R5' && v.room === 1)
+    const winnerSide = finalVotes.filter(v => v.vote === 'aff').length >= finalVotes.filter(v => v.vote === 'opp').length ? 'aff' : 'opp'
+    const champCode = winnerSide === 'aff' ? finalPair.aff_code : finalPair.opp_code
+    const runnerCode = winnerSide === 'aff' ? finalPair.opp_code : finalPair.aff_code
+    const journey = (code) => PRELIMS.concat(['R4','R5']).map(r => {
+      const p = (pairings || []).find(x => x.round_id === r && (x.aff_code === code || x.opp_code === code))
+      if (!p) return { round: r, none: true }
+      const side = p.aff_code === code ? 'aff' : 'opp'
+      const oppCode = side === 'aff' ? p.opp_code : p.aff_code
+      if (r === 'R4' || r === 'R5') {
+        const votes = (semiVotes || []).filter(v => v.round_id === r && v.room === p.room)
+        const myVotes = votes.filter(v => v.vote === side).length
+        const otherVotes = votes.filter(v => v.vote !== side).length
+        return { round: r, room: p.room, side, oppCode, panel: myVotes, against: otherVotes, won: myVotes > otherVotes }
+      }
+      const b = (ballots || []).find(x => x.round_id === r && x.room === p.room)
+      if (!b) return { round: r, room: p.room, side, oppCode, none: true }
+      const myTotal = AXES.reduce((s, a) => s + (b[`${side}_${a}`] || 0), 0)
+      const otherTotal = AXES.reduce((s, a) => s + (b[`${side === 'aff' ? 'opp' : 'aff'}_${a}`] || 0), 0)
+      return { round: r, room: p.room, side, oppCode, myTotal, otherTotal, won: b.winner === side }
+    })
+    return { champCode, runnerCode, champ: journey(champCode), runner: journey(runnerCode) }
+  }, [pairings, semiVotes, ballots])
+
+  // Content stats
+  const contentStats = useMemo(() => {
+    const notes = prelimBallots.flatMap(b => [b.aff_note, b.opp_note].filter(Boolean))
+    const speechNotes = prelimBallots.flatMap(b => Object.values(b.speech_notes || {}).filter(v => v && v.length))
+    const allText = notes.concat(speechNotes).join(' ')
+    const words = allText.split(/\s+/).filter(w => w.length > 3).map(w => w.toLowerCase().replace(/[^a-z]/g, ''))
+    const wordFreq = {}
+    for (const w of words) wordFreq[w] = (wordFreq[w] || 0) + 1
+    const topWords = Object.entries(wordFreq).sort((a, b) => b[1] - a[1]).slice(0, 20)
+    const totalWords = words.length
+    const noteLenAvg = notes.length ? notes.reduce((s, n) => s + n.length, 0) / notes.length : 0
+    const longestNote = notes.slice().sort((a, b) => b.length - a.length)[0] || ''
+    return { totalWords, noteLenAvg, longestNote, topWords, totalNotes: notes.length, totalSpeechNotes: speechNotes.length }
+  }, [prelimBallots])
+
+  // Headline numbers
+  const totalBallots = prelimBallots.length
+  const totalForfeits = prelimBallots.filter(b => b.forfeit_side).length
+  const totalSemiVotes = (semiVotes || []).length
+  const judgeHours = judgeStats.reduce((s, j) => s + j.ballots.length, 0) // 1 ballot = 1 hour
+  const winningClass = classStats[0]?.class
+  const totalPointsAwarded = prelimBallots.reduce((s, b) => s + AXES.reduce((ss, a) => ss + (b[`aff_${a}`] || 0) + (b[`opp_${a}`] || 0), 0), 0)
+
+  return (
+    <div className="stats-tab">
+      {/* HEADLINE */}
+      <section className="ss ss-headline">
+        <div className="ss-hd"><h3>Headline</h3><span>The top-line numbers</span></div>
+        <div className="stat-row">
+          <StatCard k="Total ballots" v={totalBallots + totalSemiVotes} sub={`${totalBallots} prelim + ${totalSemiVotes} panel`} />
+          <StatCard k="Forfeits" v={totalForfeits} sub="prelim rooms" />
+          <StatCard k="Judge-hours" v={judgeHours} sub="~1 hr per ballot" />
+          <StatCard k="Winning class" v={winningClass || '—'} sub={`${classStats[0]?.wins || 0} wins`} />
+          <StatCard k="Points awarded" v={totalPointsAwarded} sub="across all axes" />
+          <StatCard k="Scholars" v={scholars.length} sub="60 target" />
+          <StatCard k="Judges" v={judges.length} sub="30 target" />
+        </div>
+      </section>
+
+      {/* TOP 10 */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Top 10 speakers</h3><span>By total points, ties broken by wins</span></div>
+        <BarList items={top10Total.map((s, i) => ({
+          label: `${i+1}. ${s.code} · ${s.name || '—'}`,
+          value: s.grandTotal, max: 60, sub: `${s.wins}W ${s.losses}L`, badge: s.class,
+        }))} color="#8cc63e" />
+      </section>
+
+      {/* AXIS CHAMPIONS */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Axis champions</h3><span>Best on each of the 4 rubric axes (sum across R1–R3, /15)</span></div>
+        <div className="stat-quad">
+          {AXES.map(a => (
+            <div key={a} className="stat-mini">
+              <div className="stat-mini-hd">{AXIS_LABEL[a]}</div>
+              {axisTop[a].slice(0, 3).map((s, i) => (
+                <div key={s.code} className="stat-mini-row">
+                  <span className="rk">{i+1}</span>
+                  <span className="cd">{s.code}</span>
+                  <span className="nm">{s.name || '—'}</span>
+                  <span className="pt">{s.axisSum}/15</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* SCORE DISTRIBUTION */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Score distribution</h3><span>How often each /20 total occurred across all prelim speaker-scores</span></div>
+        <Histogram bins={scoreDist} labels={scoreDist.map((_, i) => `${i}`)} />
+      </section>
+
+      {/* SIDE WIN RATE */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Prop vs Opp</h3><span>Which side won more? (Forfeits excluded)</span></div>
+        <SideDonut prop={sideWinRate.prop} opp={sideWinRate.opp} />
+      </section>
+
+      {/* CLASS LEADERBOARD */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Class leaderboard</h3><span>Total wins per class (avg score in parentheses)</span></div>
+        <BarList items={classStats.map(c => ({
+          label: `Class ${c.class}`, value: c.wins, max: Math.max(...classStats.map(x => x.wins)), sub: `avg ${c.avg.toFixed(1)}/20 · ${c.count} scholars`,
+        }))} color="#1dafec" />
+      </section>
+
+      {/* CLASS MVPs */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Class MVPs</h3><span>Top scorer from each class</span></div>
+        <div className="stat-grid">
+          {classMVPs.map(m => (
+            <div key={m.class} className="stat-mvp">
+              <div className="stat-mvp-cls">Class {m.class}</div>
+              <div className="stat-mvp-code">{m.code}</div>
+              <div className="stat-mvp-name">{m.name || '—'}</div>
+              <div className="stat-mvp-pts">{m.grandTotal} pts · {m.wins}W</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ALL-TOURNAMENT TEAM */}
+      <section className="ss">
+        <div className="ss-hd"><h3>All-tournament team</h3><span>Top 6 by total points, regardless of class</span></div>
+        <div className="stat-grid grid-6">
+          {allTournamentTeam.map((s, i) => (
+            <div key={s.code} className="stat-mvp accent-gold">
+              <div className="stat-mvp-cls">#{i+1} · Class {s.class}</div>
+              <div className="stat-mvp-code">{s.code}</div>
+              <div className="stat-mvp-name">{s.name || '—'}</div>
+              <div className="stat-mvp-pts">{s.grandTotal} pts</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* MATCHUP MATRIX */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Class-vs-class matchup matrix</h3><span>How many prelim rooms had each class combination (Aff × Opp)</span></div>
+        <ClassMatrix grid={classMatrix} />
+      </section>
+
+      {/* JUDGE SEVERITY */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Judge severity</h3><span>Average points a judge awards per speaker</span></div>
+        <BarList items={judgeStats.slice().sort((a, b) => a.avgScore - b.avgScore).map(j => ({
+          label: `${j.code} · ${j.name || '—'}`,
+          value: +j.avgScore.toFixed(2), max: 20, sub: `${j.ballots.length} ballots`,
+        }))} color="#efb34a" />
+      </section>
+
+      {/* JUDGE LEAN */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Judge lean</h3><span>Fraction of decisions where they picked Prop (0.5 = balanced)</span></div>
+        <BarList items={judgeStats.slice().sort((a, b) => b.propLean - a.propLean).map(j => ({
+          label: `${j.code} · ${j.name || '—'}`,
+          value: +j.propLean.toFixed(2), max: 1, sub: `${j.propPicks} Prop / ${j.oppPicks} Opp`,
+        }))} color="#7c5cff" />
+      </section>
+
+      {/* JUDGE FEEDBACK DENSITY */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Note-writers</h3><span>Judges by average note length (chars) + speech-note fill rate</span></div>
+        <BarList items={judgeStats.slice().sort((a, b) => b.avgNoteLen - a.avgNoteLen).slice(0, 15).map(j => ({
+          label: `${j.code} · ${j.name || '—'}`,
+          value: Math.round(j.avgNoteLen), max: Math.max(...judgeStats.map(x => x.avgNoteLen)) || 1,
+          sub: `flow: ${Math.round(j.speechFillRate * 100)}%`,
+        }))} color="#2b2c2d" />
+      </section>
+
+      {/* MOTION KIND WINRATE */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Motion kind win rates</h3><span>Did Policy motions favor Prop? Value? Metaphor?</span></div>
+        <div className="stat-quad grid-3">
+          {['Policy','Value','Metaphor'].map(k => (
+            <div key={k} className="stat-mini">
+              <div className="stat-mini-hd">{k}</div>
+              <div className="stat-motion-row">Prop <b>{kindStats[k].prop}</b></div>
+              <div className="stat-motion-row">Opp <b>{kindStats[k].opp}</b></div>
+              <div className="stat-motion-row">Avg score <b>{kindStats[k].avgScore.toFixed(1)}/20</b></div>
+              <div className="stat-motion-row">Sample n = {kindStats[k].tot}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* MOST SURVIVED MOTIONS */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Motions ranked</h3><span>Most-survived (used in most rooms) at top</span></div>
+        <div className="stat-list">
+          {motionStats.slice().sort((a, b) => b.survived - a.survived).slice(0, 10).map(m => (
+            <div key={m.id} className="stat-motion-card">
+              <div className="stat-motion-top">
+                <span className="tag" style={{background: m.kind === 'Policy' ? '#1dafec' : m.kind === 'Value' ? '#efb34a' : '#8cc63e'}}>{m.kind}</span>
+                <span>{m.roundId}</span>
+                <span className="stat-motion-count">{m.survived}× survived</span>
+              </div>
+              <div className="stat-motion-text">{m.text}</div>
+              <div className="stat-motion-foot">avg score {m.avgScore.toFixed(1)} · avg spread {m.avgSpread.toFixed(1)} · Prop {m.propWins} / Opp {m.oppWins}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* NEVER SURVIVED MOTIONS */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Never-survived motions</h3><span>Motions that always got struck</span></div>
+        <div className="stat-list">
+          {(motions || []).filter(m => PRELIMS.includes(m.round_id) && !motionStats.find(ms => ms.id === m.id)).map(m => (
+            <div key={m.id} className="stat-motion-card muted">
+              <div className="stat-motion-top">
+                <span className="tag" style={{background: m.kind === 'Policy' ? '#1dafec' : m.kind === 'Value' ? '#efb34a' : '#8cc63e'}}>{m.kind}</span>
+                <span>{m.round_id}</span>
+              </div>
+              <div className="stat-motion-text">{m.text}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ROUND PACING */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Round-level averages</h3><span>Did quality dip or rise as the day progressed?</span></div>
+        <div className="stat-quad">
+          {PRELIMS.map(r => {
+            const st = roundStats[r]
+            return (
+              <div key={r} className="stat-mini">
+                <div className="stat-mini-hd">{r}</div>
+                <div className="stat-motion-row">Ballots <b>{st.ballots}</b></div>
+                <div className="stat-motion-row">Avg score <b>{st.avg.toFixed(2)}/20</b></div>
+                <div className="stat-motion-row">Avg spread <b>{st.avgSpread.toFixed(2)}</b></div>
+                <div className="stat-motion-row">Prop wins <b>{st.propWins}</b> · Opp wins <b>{st.oppWins}</b></div>
+                <div className="stat-motion-row">Forfeits <b>{st.forfeits}</b></div>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* STORY: COMEBACK */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Comeback of the day</h3><span>Biggest jump from R1 to R3</span></div>
+        <BarList items={stories.comebacks.slice(0, 5).map(s => ({
+          label: `${s.code} · ${s.name || '—'}`,
+          value: s.delta, max: 20, sub: `R1 ${s.rounds.R1?.total} → R3 ${s.rounds.R3?.total}`, badge: s.class,
+        }))} color="#8cc63e" />
+      </section>
+
+      {/* STORY: CLUTCH */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Clutch performances</h3><span>Rooms decided by the tightest margins</span></div>
+        <div className="stat-list">
+          {stories.clutch.map((c, i) => (
+            <div key={i} className="stat-clutch-row">
+              <span className="stat-clutch-round">{c.round}</span>
+              <span>Room #{c.room}</span>
+              <span className="stat-clutch-margin">by {c.spread} pt{c.spread === 1 ? '' : 's'}</span>
+              <span>{c.winnerCode} beat {c.loserCode} · {c.aff}–{c.opp}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* STORY: DOMINATION */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Domination matches</h3><span>Biggest total-score gaps (non-forfeit)</span></div>
+        <div className="stat-list">
+          {stories.domination.map((c, i) => (
+            <div key={i} className="stat-clutch-row">
+              <span className="stat-clutch-round">{c.round}</span>
+              <span>Room #{c.room}</span>
+              <span className="stat-clutch-margin domination">gap {c.spread} pts</span>
+              <span>{c.winnerCode} demolished {c.loserCode} · {c.aff}–{c.opp}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* STORY: BEST SINGLE-ROUND */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Best single-round performances</h3><span>Highest /20 in one round</span></div>
+        <div className="stat-list">
+          {stories.bestSingle.map((s, i) => (
+            <div key={i} className="stat-clutch-row">
+              <span className="stat-clutch-round">{s.round}</span>
+              <span>{s.code} · {s.name || '—'}</span>
+              <span className="stat-clutch-margin domination">{s.total}/20</span>
+              <span>({s.scores.join('/')})</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* STORY: GRAND SLAMS */}
+      {stories.grandSlams.length > 0 && (
+        <section className="ss">
+          <div className="ss-hd"><h3>Perfect 20s</h3><span>Speakers who scored 5/5/5/5 in a single round</span></div>
+          <div className="stat-list">
+            {stories.grandSlams.map((s, i) => (
+              <div key={i} className="stat-clutch-row">
+                <span className="stat-clutch-round">{s.round}</span>
+                <span>{s.code} · {s.name || '—'}</span>
+                <span className="stat-clutch-margin domination">perfect 20/20</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* STORY: REVERSALS */}
+      {stories.reversals.length > 0 && (
+        <section className="ss">
+          <div className="ss-hd"><h3>Reversal watch</h3><span>Rooms where the winner had fewer total points (judgment call)</span></div>
+          <div className="stat-list">
+            {stories.reversals.map((c, i) => (
+              <div key={i} className="stat-clutch-row">
+                <span className="stat-clutch-round">{c.round}</span>
+                <span>Room #{c.room}</span>
+                <span>{c.winnerCode} won · but pts were {c.aff}–{c.opp}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* STORY: STREAKS */}
+      {stories.streaks.length > 0 && (
+        <section className="ss">
+          <div className="ss-hd"><h3>3-0 sweepers</h3><span>Speakers who won all 3 prelim rounds</span></div>
+          <div className="stat-list">
+            {stories.streaks.map((s, i) => (
+              <div key={i} className="stat-clutch-row">
+                <span className="stat-clutch-round">3-0</span>
+                <span>{s.code} · {s.name || '—'}</span>
+                <span>{s.grandTotal} pts</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* STORY: SHOULD-HAVE-BEEN */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Should-have-been-champion</h3><span>Highest cumulative points who didn't make the final</span></div>
+        <div className="stat-list">
+          {stories.shouldHave.map((s, i) => (
+            <div key={i} className="stat-clutch-row">
+              <span className="stat-clutch-round">#{i+1}</span>
+              <span>{s.code} · {s.name || '—'}</span>
+              <span className="stat-clutch-margin">{s.grandTotal} pts · {s.wins}W</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CHAMPION JOURNEY */}
+      {championJourney && (
+        <section className="ss">
+          <div className="ss-hd"><h3>Champion's path</h3><span>{championJourney.champCode} · {nameByCode[championJourney.champCode] || '—'}</span></div>
+          <JourneyTimeline steps={championJourney.champ} />
+        </section>
+      )}
+      {championJourney && (
+        <section className="ss">
+          <div className="ss-hd"><h3>Runner-up's path</h3><span>{championJourney.runnerCode} · {nameByCode[championJourney.runnerCode] || '—'}</span></div>
+          <JourneyTimeline steps={championJourney.runner} />
+        </section>
+      )}
+
+      {/* SEMI + FINAL VOTES */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Panel voting results</h3><span>Semi (15-judge panels) + Final (30-judge panel)</span></div>
+        <div className="stat-quad grid-3">
+          <div className="stat-mini">
+            <div className="stat-mini-hd">Semi 1 · Panel A</div>
+            <div className="stat-motion-row">Prop <b>{semiStats.rooms[1]?.aff || 0}</b></div>
+            <div className="stat-motion-row">Opp <b>{semiStats.rooms[1]?.opp || 0}</b></div>
+            <div className="stat-motion-row">Gap <b>{semiStats.rooms[1]?.gap || 0}</b></div>
+          </div>
+          <div className="stat-mini">
+            <div className="stat-mini-hd">Semi 2 · Panel B</div>
+            <div className="stat-motion-row">Prop <b>{semiStats.rooms[2]?.aff || 0}</b></div>
+            <div className="stat-motion-row">Opp <b>{semiStats.rooms[2]?.opp || 0}</b></div>
+            <div className="stat-motion-row">Gap <b>{semiStats.rooms[2]?.gap || 0}</b></div>
+          </div>
+          <div className="stat-mini">
+            <div className="stat-mini-hd">Final · Panel of 30</div>
+            <div className="stat-motion-row">Prop <b>{semiStats.final.aff}</b></div>
+            <div className="stat-motion-row">Opp <b>{semiStats.final.opp}</b></div>
+            <div className="stat-motion-row">Gap <b>{semiStats.final.gap}</b></div>
+          </div>
+        </div>
+      </section>
+
+      {/* CONTENT STATS */}
+      <section className="ss">
+        <div className="ss-hd"><h3>Content produced</h3><span>Judge notes, speech notes, total words</span></div>
+        <div className="stat-row">
+          <StatCard k="Words in notes" v={contentStats.totalWords} sub="4+ char words" />
+          <StatCard k="Notes to speakers" v={contentStats.totalNotes} sub={`avg ${contentStats.noteLenAvg.toFixed(0)} chars`} />
+          <StatCard k="Speech notes" v={contentStats.totalSpeechNotes} sub="prop-const, opp-open, etc." />
+        </div>
+        {contentStats.topWords.length > 0 && (
+          <div className="stat-word-cloud">
+            {contentStats.topWords.map(([w, n]) => (
+              <span key={w} className="wc" style={{ fontSize: `${12 + Math.min(28, n * 1.5)}px` }}>{w}<sup>{n}</sup></span>
+            ))}
+          </div>
+        )}
+        {contentStats.longestNote && (
+          <div className="stat-best-line">
+            <span className="dp-note-label">Longest one-liner</span>
+            <div className="dp-note">"{contentStats.longestNote}"</div>
+          </div>
+        )}
+      </section>
+
+      <section className="ss ss-footnote">
+        <div className="ss-hd"><h3>Meta</h3></div>
+        <p>All stats computed client-side from live data. Some ideas from the brainstorm require data we didn't log (actual prep-time used, ballot submission timestamps precise to seconds, year-of-study per scholar) — those are the ones missing here. Ping me if you want to add tracking for next year.</p>
+      </section>
+    </div>
+  )
+}
+
+/* ---------------- STATS PRIMITIVES ---------------- */
+function StatCard({ k, v, sub }) {
+  return <div className="s-card"><div className="s-k">{k}</div><div className="s-v">{v}</div>{sub && <div className="s-s">{sub}</div>}</div>
+}
+function BarList({ items, color = '#8cc63e' }) {
+  const max = Math.max(1, ...items.map(x => x.max || x.value))
+  return (
+    <div className="s-bars">
+      {items.map((x, i) => (
+        <div key={i} className="s-bar-row">
+          <div className="s-bar-lbl">
+            <span>{x.label}</span>
+            {x.badge && <span className="s-bar-badge">{x.badge}</span>}
+          </div>
+          <div className="s-bar-track">
+            <div className="s-bar-fill" style={{ width: `${(x.value / max) * 100}%`, background: color }} />
+          </div>
+          <div className="s-bar-val">{x.value}{x.sub && <small> · {x.sub}</small>}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+function Histogram({ bins, labels }) {
+  const max = Math.max(1, ...bins)
+  return (
+    <div className="s-histo">
+      {bins.map((n, i) => (
+        <div key={i} className="s-histo-col" title={`${labels[i]}: ${n}`}>
+          <div className="s-histo-bar" style={{ height: `${(n / max) * 100}%` }} />
+          <div className="s-histo-lbl">{labels[i]}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+function SideDonut({ prop, opp }) {
+  const total = prop + opp || 1
+  const p = (prop / total) * 100
+  return (
+    <div className="s-donut-wrap">
+      <div className="s-donut" style={{ background: `conic-gradient(#1dafec 0 ${p}%, #efb34a ${p}% 100%)` }}>
+        <div className="s-donut-hole">
+          <div><span>{Math.round(p)}%</span><small>Prop</small></div>
+        </div>
+      </div>
+      <div className="s-donut-legend">
+        <div><span className="chip aff"></span>Prop won {prop}</div>
+        <div><span className="chip opp"></span>Opp won {opp}</div>
+      </div>
+    </div>
+  )
+}
+function ClassMatrix({ grid }) {
+  const classes = ['A','B','C','D','E','F']
+  return (
+    <table className="s-matrix">
+      <thead><tr><th></th>{classes.map(c => <th key={c}>Opp {c}</th>)}</tr></thead>
+      <tbody>
+        {classes.map(a => (
+          <tr key={a}>
+            <th>Aff {a}</th>
+            {classes.map(o => {
+              const n = grid[`${a}-${o}`] || 0
+              return <td key={o} style={{ background: `rgba(140,198,62,${Math.min(0.55, n / 6)})` }}>{n || ''}</td>
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+function JourneyTimeline({ steps }) {
+  return (
+    <div className="s-timeline">
+      {steps.map((st, i) => (
+        <div key={i} className={`s-tstep ${st.won ? 'won' : ''} ${st.none ? 'none' : ''}`}>
+          <div className="s-tround">{st.round}</div>
+          {st.none ? <div className="s-tdetail">—</div> : (
+            <div className="s-tdetail">
+              <div>Room #{st.room} · <b>{st.side === 'aff' ? 'Prop' : 'Opp'}</b> vs {st.oppCode}</div>
+              {st.round === 'R4' || st.round === 'R5' ? (
+                <div>Panel: <b>{st.panel}</b> for · {st.against} against · {st.won ? 'W' : 'L'}</div>
+              ) : (
+                <div>{st.myTotal}/20 vs {st.otherTotal}/20 · {st.won ? 'W' : 'L'}</div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   )
 }
