@@ -54,11 +54,17 @@ export default function JudgePortal() {
   const { rows: semiVotes } = useRealtime('semi_votes', {}, [])
 
   const active = useMemo(() => (rounds || []).find(r => r.state !== 'locked' && r.state !== 'done'), [rounds])
-  const isSemiRound = active?.id === 'R4' || active?.id === 'R5'
-  const myPanel = useMemo(
-    () => (semiPanels || []).find(p => p.judge_code === profile?.code),
-    [semiPanels, profile?.code]
-  )
+  const isSemiRound = active?.id === 'R4'
+  const isFinalRound = active?.id === 'R5'
+  const myPanel = useMemo(() => {
+    if (isSemiRound) return (semiPanels || []).find(p => p.judge_code === profile?.code)
+    if (isFinalRound) {
+      // R5: everybody is on one panel voting in Room 1 (Amphitheatre)
+      const isJudge = /^J\d+$/.test(profile?.code || '')
+      return isJudge ? { judge_code: profile.code, panel: 'F', location: 'Amphitheatre' } : null
+    }
+    return null
+  }, [semiPanels, profile?.code, isSemiRound, isFinalRound])
   const myAssignments = useMemo(
     () => (pairings || []).filter(p => p.judge_code === profile.code),
     [pairings, profile?.code]
@@ -143,8 +149,8 @@ export default function JudgePortal() {
   const inStrikePhase = active && mine && active.state === 'prep' && !mine.final_motion_id && roundMotions.length > 0
   const total = (s) => AXES.reduce((sum, a) => sum + (Number(ballot[`${s}_${a.key}`]) || 0), 0)
 
-  // Semi-panel voting mode — 15 judges per Commons vote 1-click, majority wins.
-  if (isSemiRound && myPanel) {
+  // Semi-panel voting mode — 15 judges per Commons for R4, 30 judges for R5 final.
+  if ((isSemiRound || isFinalRound) && myPanel) {
     return <SemiPanelVote
       profile={profile}
       active={active}
@@ -152,6 +158,7 @@ export default function JudgePortal() {
       pairings={pairings || []}
       motions={allMotions || []}
       semiVotes={semiVotes || []}
+      isFinal={isFinalRound}
     />
   }
 
@@ -412,9 +419,13 @@ export default function JudgePortal() {
 }
 
 /* ---------------- SEMI-PANEL VOTE ---------------- */
-function SemiPanelVote({ profile, active, myPanel, pairings, motions, semiVotes }) {
-  const room = myPanel.panel === 'A' ? 1 : 2
+function SemiPanelVote({ profile, active, myPanel, pairings, motions, semiVotes, isFinal }) {
+  // Final: everyone → Room 1. Semi: Panel A → Room 1, Panel B → Room 2.
+  const room = isFinal ? 1 : (myPanel.panel === 'A' ? 1 : 2)
   const semiNum = myPanel.panel === 'A' ? 1 : 2
+  const target = isFinal ? 30 : 15
+  const majority = Math.floor(target / 2) + 1     // 16 for final, 8 for semi
+  const label = isFinal ? 'Final' : `Semi ${semiNum}`
   const pairing = pairings.find(p => p.round_id === active.id && p.room === room)
   const motion = pairing ? motions.find(m => m.id === (pairing.final_motion_id || pairing.motion_id)) : null
 
@@ -425,7 +436,6 @@ function SemiPanelVote({ profile, active, myPanel, pairings, motions, semiVotes 
   const affN = roomVotes.filter(v => v.vote === 'aff').length
   const oppN = roomVotes.filter(v => v.vote === 'opp').length
   const total = affN + oppN
-  const target = 15
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
 
@@ -442,14 +452,14 @@ function SemiPanelVote({ profile, active, myPanel, pairings, motions, semiVotes 
     if (error) setErr(error.message)
   }
 
-  const decided = affN >= 8 || oppN >= 8
+  const decided = affN >= majority || oppN >= majority
   const winner = affN > oppN ? 'aff' : oppN > affN ? 'opp' : null
 
   return (
     <PortalShell title="Judge Console">
       <div className="semi-hero">
         <span className="kicker">Panel {myPanel.panel} · {myPanel.location}</span>
-        <h1 className="editorial-title">Semi {semiNum}.</h1>
+        <h1 className="editorial-title">{label}.</h1>
         <div className="semi-hero-meta">
           <span>{profile?.code}</span>
           <span className="dot" />
@@ -518,7 +528,7 @@ function SemiPanelVote({ profile, active, myPanel, pairings, motions, semiVotes 
       ) : (
         <div className="portal-empty">
           <b>No matchup ready yet.</b>
-          <span>Semi {semiNum} pairing not yet published. Admin builds it after prelims close.</span>
+          <span>{label} pairing not yet published. Admin builds it after the previous round closes.</span>
         </div>
       )}
     </PortalShell>

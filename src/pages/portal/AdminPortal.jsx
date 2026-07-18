@@ -328,10 +328,19 @@ function LiveRoomsTab({ rounds, pairings, motions, ballots }) {
 
 function RoomCard({ pairing, roundMotions, ballot, hasDraft, allJudges, semiVotes = [], isSemi = false }) {
   const { rows: semiPanels } = useRealtime('semi_panels', {}, [])
-  const panelForRoom = isSemi ? (pairing.room === 1 ? 'A' : 'B') : null
+  const { rows: allowed } = useRealtime('allowed_users', {}, [])
+  const isFinal = pairing.round_id === 'R5'
+  const panelForRoom = isSemi
+    ? (isFinal ? 'F' : (pairing.room === 1 ? 'A' : 'B'))
+    : null
+  // For final: all judges are on one panel of 30.
   const panelJudges = isSemi
-    ? (semiPanels || []).filter(p => p.panel === panelForRoom)
+    ? (isFinal
+        ? (allowed || []).filter(u => u.role === 'judge').map(u => ({ judge_code: u.code, panel: 'F', location: 'Amphitheatre' }))
+        : (semiPanels || []).filter(p => p.panel === panelForRoom))
     : []
+  const panelSize = isFinal ? 30 : 15
+  const majority = isFinal ? 16 : 8
   const seg = SEGMENT_MAP[pairing.segment] || SEGMENT_MAP.idle
   const remaining = computeRemaining(pairing.segment_ends_at)
   const finalMotion = roundMotions.find(m => m.id === pairing.final_motion_id)
@@ -378,8 +387,8 @@ function RoomCard({ pairing, roundMotions, ballot, hasDraft, allJudges, semiVote
       <div className="rm-hdr">
         <span className="rm-num">#{pairing.room}</span>
         {isSemi ? (
-          <span className="rm-panel-tag" title={`Panel ${panelForRoom} · Commons ${panelForRoom} · ${panelJudges.length} judges`}>
-            Panel {panelForRoom} · {panelJudges.length}
+          <span className="rm-panel-tag" title={`${isFinal ? 'Final' : 'Panel ' + panelForRoom} · ${isFinal ? 'Amphitheatre' : 'Commons ' + panelForRoom} · ${panelJudges.length} judges`}>
+            {isFinal ? `Final · ${panelJudges.length}` : `Panel ${panelForRoom} · ${panelJudges.length}`}
           </span>
         ) : (
           <span className="rm-judge" title="Click to reassign" onClick={reassign} style={{cursor:'pointer'}}>{pairing.judge_code}</span>
@@ -432,22 +441,22 @@ function RoomCard({ pairing, roundMotions, ballot, hasDraft, allJudges, semiVote
         const affN = semiVotes.filter(v => v.vote === 'aff').length
         const oppN = semiVotes.filter(v => v.vote === 'opp').length
         const total = affN + oppN
-        const decided = affN >= 8 || oppN >= 8
+        const decided = affN >= majority || oppN >= majority
         const winner = affN > oppN ? 'aff' : oppN > affN ? 'opp' : null
         return (
           <div className="rm-semi-tally">
             <div className="rm-semi-row">
               <span className="rm-semi-label">Prop {pairing.aff_code}</span>
-              <span className="rm-semi-bar"><span className="fill aff" style={{ width: `${(affN/15)*100}%` }} /></span>
+              <span className="rm-semi-bar"><span className="fill aff" style={{ width: `${(affN/panelSize)*100}%` }} /></span>
               <span className="rm-semi-count">{affN}</span>
             </div>
             <div className="rm-semi-row">
               <span className="rm-semi-label">Opp {pairing.opp_code}</span>
-              <span className="rm-semi-bar"><span className="fill opp" style={{ width: `${(oppN/15)*100}%` }} /></span>
+              <span className="rm-semi-bar"><span className="fill opp" style={{ width: `${(oppN/panelSize)*100}%` }} /></span>
               <span className="rm-semi-count">{oppN}</span>
             </div>
             <div className="rm-semi-foot">
-              {total}/15 votes
+              {total}/{panelSize} votes
               {decided && winner && <b className="rm-semi-winner"> · Winner: {winner === 'aff' ? pairing.aff_code : pairing.opp_code}</b>}
             </div>
           </div>
