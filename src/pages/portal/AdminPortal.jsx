@@ -645,6 +645,12 @@ function StandingsTab({ pairings, ballots }) {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState(null)
   const { rows: semiVotes } = useRealtime('semi_votes', {}, [])
+  const { rows: allowed } = useRealtime('allowed_users', {}, [])
+  const nameByCode = useMemo(() => {
+    const m = {}
+    for (const u of (allowed || [])) if (u.code) m[u.code] = u.name || ''
+    return m
+  }, [allowed])
   async function buildBracket() {
     if (!confirm('Build the R4 quarters bracket from top 4 prelims? Existing R4/R5 pairings will be replaced.')) return
     setBusy(true); setNote(null)
@@ -793,12 +799,13 @@ function StandingsTab({ pairings, ballots }) {
     ) : (
     <div className="standings">
       <table className="fmt-table">
-        <thead><tr><th>#</th><th>Speaker</th><th>Wins</th><th>Total Points</th><th>Debates</th></tr></thead>
+        <thead><tr><th>#</th><th>Code</th><th>Name</th><th>Wins</th><th>Total Points</th><th>Debates</th></tr></thead>
         <tbody>
           {stats.map((s, i) => (
             <tr key={s.code} className={i < 4 ? 'top-4' : ''}>
               <td className="rank">{i+1}</td>
               <td className="seg">{s.code}</td>
+              <td>{nameByCode[s.code] || '—'}</td>
               <td><b>{s.wins}</b></td>
               <td>{s.points}</td>
               <td>{s.appearances}</td>
