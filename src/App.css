@@ -3046,3 +3046,92 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
   font-family: 'Montserrat', sans-serif; font-weight: 800;
   font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
 }
+
+/* Feedback release toggle in Admin Now tab */
+.feedback-toggle {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 20px; padding: 18px 22px; margin: 12px 0 22px;
+  border: 1.5px solid var(--brand-dark, #2b2c2d);
+  background: #fff;
+}
+.feedback-toggle.live { background: rgba(140,198,62,0.08); border-color: var(--brand-green-2, #7ab332); }
+.feedback-toggle .k {
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  color: rgba(43,44,45,0.7);
+}
+.feedback-toggle .v {
+  margin-top: 4px;
+  font-family: 'Open Sans', sans-serif; font-size: 14px;
+  color: var(--brand-dark, #2b2c2d);
+}
+.feedback-toggle .btn-primary,
+.feedback-toggle .btn-danger {
+  padding: 12px 20px;
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+  cursor: pointer; border: none;
+  white-space: nowrap;
+}
+.feedback-toggle .btn-primary { background: var(--brand-dark, #2b2c2d); color: #fff; }
+.feedback-toggle .btn-primary:hover { background: var(--brand-green-2, #7ab332); }
+.feedback-toggle .btn-danger { background: #b23; color: #fff; }
+.feedback-toggle .btn-danger:hover { background: #911; }
+
+/* Debater scorecard (post-release) */
+.dp-row-head { display: contents; }
+.dp-result.pending {
+  background: rgba(43,44,45,0.08); color: rgba(43,44,45,0.6);
+  font-style: italic;
+}
+.dp-feedback {
+  grid-column: 1 / -1;
+  margin-top: 14px; padding: 16px 18px;
+  background: var(--cream, #fbf7ee);
+  border-left: 3px solid var(--brand-green, #8cc63e);
+}
+.dp-forfeit-flag {
+  padding: 8px 12px; margin-bottom: 12px;
+  background: rgba(178,34,34,0.08); color: #711;
+  border-left: 3px solid #b23;
+  font-family: 'Open Sans', sans-serif; font-size: 13px;
+}
+.dp-scorecard {
+  width: 100%; border-collapse: collapse;
+  font-family: 'Open Sans', sans-serif; font-size: 14px;
+}
+.dp-scorecard th {
+  text-align: left; padding: 8px 12px;
+  border-bottom: 1.5px solid rgba(43,44,45,0.14);
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: rgba(43,44,45,0.7);
+}
+.dp-scorecard td { padding: 8px 12px; }
+.dp-scorecard td.axis { font-weight: 600; color: var(--brand-dark, #2b2c2d); }
+.dp-scorecard td.score { text-align: right; font-variant-numeric: tabular-nums; }
+.dp-scorecard td.score.higher {
+  color: var(--brand-green-2, #7ab332); font-weight: 700;
+}
+.dp-scorecard tr.total-row td {
+  border-top: 1.5px solid rgba(43,44,45,0.14);
+  padding-top: 12px;
+  font-size: 15px;
+}
+.dp-note-block {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1.5px solid rgba(43,44,45,0.14);
+}
+.dp-note-label {
+  display: block;
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--brand-green-2, #7ab332);
+  margin-bottom: 6px;
+}
+.dp-note {
+  font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+  font-size: 17px; color: var(--brand-dark, #2b2c2d); line-height: 1.4;
+}

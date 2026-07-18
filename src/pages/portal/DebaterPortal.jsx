@@ -12,6 +12,11 @@ export default function DebaterPortal() {
   const { rows: pairings } = useRealtime('pairings', {}, [])
   const { rows: ballots } = useRealtime('ballots', {}, [])
   const { rows: allMotions } = useRealtime('motions', {}, [])
+  const { rows: settings } = useRealtime('app_settings', {}, [])
+  const feedbackVisible = useMemo(() => {
+    const s = (settings || []).find(x => x.key === 'feedback_visible')
+    return s?.value === true
+  }, [settings])
   const [motion, setMotion] = useState(null)
 
   const mine = useMemo(() => (pairings || []).filter(
@@ -111,27 +116,73 @@ export default function DebaterPortal() {
           const mySideR = p.aff_code === profile.code ? 'Aff' : 'Opp'
           const oppCode = mySideR === 'Aff' ? p.opp_code : p.aff_code
           const b = (ballots || []).find(x => x.round_id === r.id && x.room === p.room)
-          const won = b ? (b.winner === (mySideR === 'Aff' ? 'aff' : 'opp')) : null
-          const myTotal = b ? ['argument','rebuttal','delivery','persuasion']
-            .reduce((s,k) => s + (b[`${mySideR === 'Aff' ? 'aff' : 'opp'}_${k}`] || 0), 0) : null
-          const myNote = b ? b[`${mySideR === 'Aff' ? 'aff' : 'opp'}_note`] : null
+          const myPrefix = mySideR === 'Aff' ? 'aff' : 'opp'
+          const oppPrefix = mySideR === 'Aff' ? 'opp' : 'aff'
+          const won = b ? (b.winner === myPrefix) : null
+          const AXES = [
+            ['argument', 'Argument'],
+            ['rebuttal', 'Rebuttal & CX'],
+            ['delivery', 'Delivery'],
+            ['persuasion', 'Persuasion'],
+          ]
+          const myScores = b ? AXES.map(([k]) => b[`${myPrefix}_${k}`] || 0) : null
+          const oppScores = b ? AXES.map(([k]) => b[`${oppPrefix}_${k}`] || 0) : null
+          const myTotal = myScores ? myScores.reduce((s, n) => s + n, 0) : null
+          const oppTotal = oppScores ? oppScores.reduce((s, n) => s + n, 0) : null
+          const myNote = b ? b[`${myPrefix}_note`] : null
+          const forfeited = b?.forfeit_side === myPrefix
 
           return (
             <div key={r.id} className={`dp-row st-${r.state}`}>
-              <span className="dp-round">{r.id}</span>
-              <span className="dp-room">Room #{p.room}</span>
-              <span className={`dp-side ${mySideR === 'Aff' ? 'aff' : 'opp'}`}>{mySideR === 'Aff' ? 'PROP' : 'OPP'}</span>
-              <span className="dp-vs">vs</span>
-              <span className="dp-opp">{oppCode}</span>
-              <span className="dp-judge">Judge {p.judge_code}</span>
-              {b ? (
-                <span className={`dp-result ${won ? 'won' : 'lost'}`}>
-                  {won ? 'W' : 'L'} · {myTotal}/20
-                </span>
-              ) : (
-                <span className={`state-pill st-${r.state}`}>{r.state}</span>
+              <div className="dp-row-head">
+                <span className="dp-round">{r.id}</span>
+                <span className="dp-room">Room #{p.room}</span>
+                <span className={`dp-side ${mySideR === 'Aff' ? 'aff' : 'opp'}`}>{mySideR === 'Aff' ? 'PROP' : 'OPP'}</span>
+                <span className="dp-vs">vs</span>
+                <span className="dp-opp">{oppCode}</span>
+                <span className="dp-judge">Judge {p.judge_code}</span>
+                {b ? (
+                  feedbackVisible ? (
+                    <span className={`dp-result ${won ? 'won' : 'lost'}`}>
+                      {won ? 'W' : 'L'} · {myTotal}/20
+                    </span>
+                  ) : (
+                    <span className="dp-result pending">Result — pending release</span>
+                  )
+                ) : (
+                  <span className={`state-pill st-${r.state}`}>{r.state}</span>
+                )}
+              </div>
+              {b && feedbackVisible && (
+                <div className="dp-feedback">
+                  {forfeited && <div className="dp-forfeit-flag">Forfeit recorded — you did not appear for this round.</div>}
+                  <table className="dp-scorecard">
+                    <thead>
+                      <tr><th></th><th>You ({profile?.code})</th><th>Opp ({oppCode})</th></tr>
+                    </thead>
+                    <tbody>
+                      {AXES.map(([k, label], i) => (
+                        <tr key={k}>
+                          <td className="axis">{label}</td>
+                          <td className={`score ${myScores[i] > oppScores[i] ? 'higher' : ''}`}>{myScores[i]}/5</td>
+                          <td className={`score ${oppScores[i] > myScores[i] ? 'higher' : ''}`}>{oppScores[i]}/5</td>
+                        </tr>
+                      ))}
+                      <tr className="total-row">
+                        <td>Total</td>
+                        <td><b>{myTotal}/20</b></td>
+                        <td><b>{oppTotal}/20</b></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  {myNote && (
+                    <div className="dp-note-block">
+                      <span className="dp-note-label">Note from Judge {p.judge_code}</span>
+                      <div className="dp-note">“{myNote}”</div>
+                    </div>
+                  )}
+                </div>
               )}
-              {myNote && <div className="dp-note">“{myNote}”</div>}
             </div>
           )
         })}

@@ -167,6 +167,21 @@ function NowTab({ rounds, pairings, ballots }) {
   useTick(1000)
   const active = rounds.find(r => r.state !== 'locked' && r.state !== 'done')
   const now = Date.now()
+  const { rows: settings } = useRealtime('app_settings', {}, [])
+  const feedbackVisible = useMemo(() => {
+    const s = (settings || []).find(x => x.key === 'feedback_visible')
+    return s?.value === true
+  }, [settings])
+  const [feedbackBusy, setFeedbackBusy] = useState(false)
+  async function toggleFeedback() {
+    setFeedbackBusy(true)
+    const next = !feedbackVisible
+    const { error } = await supabase.from('app_settings')
+      .upsert({ key: 'feedback_visible', value: next, updated_at: new Date().toISOString() },
+              { onConflict: 'key' })
+    setFeedbackBusy(false)
+    if (error) alert(`Error: ${error.message}`)
+  }
 
   const exceptions = useMemo(() => {
     const items = []
@@ -224,6 +239,17 @@ function NowTab({ rounds, pairings, ballots }) {
           <div className="k">Attention</div>
           <div className="v">{exceptions.length}</div>
         </div>
+      </div>
+
+      <div className={`feedback-toggle ${feedbackVisible ? 'live' : ''}`}>
+        <div>
+          <span className="k">Debater feedback</span>
+          <div className="v">{feedbackVisible ? 'Released — every debater sees scores + notes' : 'Locked — hidden from debaters until you release'}</div>
+        </div>
+        <button className={`btn-${feedbackVisible ? 'danger' : 'primary'}`}
+                onClick={toggleFeedback} disabled={feedbackBusy}>
+          {feedbackBusy ? '…' : feedbackVisible ? 'Lock feedback' : 'Release feedback'}
+        </button>
       </div>
 
       {exceptions.length === 0 ? (
