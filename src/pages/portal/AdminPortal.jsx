@@ -327,6 +327,11 @@ function LiveRoomsTab({ rounds, pairings, motions, ballots }) {
 }
 
 function RoomCard({ pairing, roundMotions, ballot, hasDraft, allJudges, semiVotes = [], isSemi = false }) {
+  const { rows: semiPanels } = useRealtime('semi_panels', {}, [])
+  const panelForRoom = isSemi ? (pairing.room === 1 ? 'A' : 'B') : null
+  const panelJudges = isSemi
+    ? (semiPanels || []).filter(p => p.panel === panelForRoom)
+    : []
   const seg = SEGMENT_MAP[pairing.segment] || SEGMENT_MAP.idle
   const remaining = computeRemaining(pairing.segment_ends_at)
   const finalMotion = roundMotions.find(m => m.id === pairing.final_motion_id)
@@ -372,8 +377,29 @@ function RoomCard({ pairing, roundMotions, ballot, hasDraft, allJudges, semiVote
     <div className={`rm-card rm-${stage}`}>
       <div className="rm-hdr">
         <span className="rm-num">#{pairing.room}</span>
-        <span className="rm-judge" title="Click to reassign" onClick={reassign} style={{cursor:'pointer'}}>{pairing.judge_code}</span>
+        {isSemi ? (
+          <span className="rm-panel-tag" title={`Panel ${panelForRoom} · Commons ${panelForRoom} · ${panelJudges.length} judges`}>
+            Panel {panelForRoom} · {panelJudges.length}
+          </span>
+        ) : (
+          <span className="rm-judge" title="Click to reassign" onClick={reassign} style={{cursor:'pointer'}}>{pairing.judge_code}</span>
+        )}
       </div>
+      {isSemi && panelJudges.length > 0 && (
+        <details className="rm-panel-roster">
+          <summary>View all {panelJudges.length} judges</summary>
+          <div className="rm-panel-list">
+            {panelJudges.sort((a, b) => (parseInt(a.judge_code.replace(/^J/, ''),10) || 0) - (parseInt(b.judge_code.replace(/^J/, ''),10) || 0)).map(j => {
+              const voted = semiVotes.find(v => v.judge_code === j.judge_code)
+              return (
+                <span key={j.judge_code} className={`rm-panel-chip ${voted ? `voted-${voted.vote}` : ''}`}>
+                  {j.judge_code}
+                </span>
+              )
+            })}
+          </div>
+        </details>
+      )}
       <div className="rm-teams">
         <span className={`rm-team aff ${pairing.absent_aff ? 'absent' : ''}`}
               title="Click to toggle absent" onClick={() => toggleAbsent('aff')}>{pairing.aff_code}</span>
