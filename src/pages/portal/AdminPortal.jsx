@@ -1527,12 +1527,21 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
   const PRELIMS = ['R1','R2','R3']
   const AXES = ['argument','rebuttal','delivery','persuasion']
   const AXIS_LABEL = { argument: 'Argument', rebuttal: 'Rebuttal & CX', delivery: 'Delivery', persuasion: 'Persuasion' }
+
+  // Filters
+  const [roundFilter, setRoundFilter] = useState('all')      // 'all' | 'R1' | 'R2' | 'R3'
+  const [classFilter, setClassFilter] = useState('all')      // 'all' | 'A'..'F'
+  const [drilldown, setDrilldown] = useState(null)           // { kind: 'scholar'|'judge'|'room', ...ctx }
+
   const scholars = useMemo(() => (allowed || []).filter(u => u.role === 'scholar'), [allowed])
   const judges   = useMemo(() => (allowed || []).filter(u => u.role === 'judge'), [allowed])
   const nameByCode = useMemo(() => { const m = {}; for (const u of allowed || []) if (u.code) m[u.code] = u.name; return m }, [allowed])
   const classOf = (code) => code?.charAt(0) || '?'
-  const prelimBallots = useMemo(() => (ballots || []).filter(b => PRELIMS.includes(b.round_id)), [ballots])
-  const prelimPairings = useMemo(() => (pairings || []).filter(p => PRELIMS.includes(p.round_id)), [pairings])
+
+  const prelimBallotsAll = useMemo(() => (ballots || []).filter(b => PRELIMS.includes(b.round_id)), [ballots])
+  const prelimPairingsAll = useMemo(() => (pairings || []).filter(p => PRELIMS.includes(p.round_id)), [pairings])
+  const prelimBallots = useMemo(() => prelimBallotsAll.filter(b => roundFilter === 'all' || b.round_id === roundFilter), [prelimBallotsAll, roundFilter])
+  const prelimPairings = useMemo(() => prelimPairingsAll.filter(p => roundFilter === 'all' || p.round_id === roundFilter), [prelimPairingsAll, roundFilter])
 
   // Speaker stats: for each speaker, per axis + total per round
   const speakerStats = useMemo(() => {
@@ -1568,7 +1577,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
     return s
   }, [prelimBallots, prelimPairings, nameByCode])
 
-  const scholarList = useMemo(() => Object.values(speakerStats), [speakerStats])
+  const scholarList = useMemo(() => Object.values(speakerStats).filter(s => classFilter === 'all' || s.class === classFilter), [speakerStats, classFilter])
 
   // Top 10 speakers by total points
   const top10Total = useMemo(() => scholarList.slice().sort((a,b) => b.grandTotal - a.grandTotal || b.wins - a.wins).slice(0, 10), [scholarList])
@@ -1849,6 +1858,45 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
 
   return (
     <div className="stats-tab">
+      {/* FILTER BAR — sticky top */}
+      <div className="stats-filters">
+        <div className="sf-group">
+          <span className="sf-lbl">Round</span>
+          {['all','R1','R2','R3'].map(r => (
+            <button key={r} className={`sf-btn ${roundFilter === r ? 'active' : ''}`} onClick={() => setRoundFilter(r)}>
+              {r === 'all' ? 'All' : r}
+            </button>
+          ))}
+        </div>
+        <div className="sf-group">
+          <span className="sf-lbl">Class</span>
+          {['all','A','B','C','D','E','F'].map(c => (
+            <button key={c} className={`sf-btn ${classFilter === c ? 'active' : ''}`} onClick={() => setClassFilter(c)}>
+              {c === 'all' ? 'All' : c}
+            </button>
+          ))}
+        </div>
+        {(roundFilter !== 'all' || classFilter !== 'all') && (
+          <button className="sf-clear" onClick={() => { setRoundFilter('all'); setClassFilter('all') }}>× Reset</button>
+        )}
+        <div className="sf-tip">Click any scholar or judge code below to drill in →</div>
+      </div>
+
+      {drilldown && (
+        <DrilldownDrawer
+          drilldown={drilldown}
+          onClose={() => setDrilldown(null)}
+          allowed={allowed || []}
+          nameByCode={nameByCode}
+          pairings={pairings || []}
+          ballots={ballots || []}
+          motions={motions || []}
+          semiVotes={semiVotes || []}
+          axes={AXES}
+          axisLabel={AXIS_LABEL}
+        />
+      )}
+
       {/* HEADLINE */}
       <section className="ss ss-headline">
         <div className="ss-hd"><h3>Headline</h3><span>The top-line numbers</span></div>
@@ -1865,11 +1913,21 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
 
       {/* TOP 10 */}
       <section className="ss">
-        <div className="ss-hd"><h3>Top 10 speakers</h3><span>By total points, ties broken by wins</span></div>
-        <BarList items={top10Total.map((s, i) => ({
-          label: `${i+1}. ${s.code} · ${s.name || '—'}`,
-          value: s.grandTotal, max: 60, sub: `${s.wins}W ${s.losses}L`, badge: s.class,
-        }))} color="#8cc63e" />
+        <div className="ss-hd"><h3>Top 10 speakers</h3><span>Click a row to drill in</span></div>
+        <div className="s-bars">
+          {top10Total.map((s, i) => (
+            <div key={s.code} className="s-bar-row clickable" onClick={() => setDrilldown({ kind: 'scholar', code: s.code })}>
+              <div className="s-bar-lbl">
+                <span>{i+1}. {s.code} · {s.name || '—'}</span>
+                <span className="s-bar-badge">{s.class}</span>
+              </div>
+              <div className="s-bar-track">
+                <div className="s-bar-fill" style={{ width: `${(s.grandTotal / 60) * 100}%`, background: '#8cc63e' }} />
+              </div>
+              <div className="s-bar-val">{s.grandTotal}<small> · {s.wins}W {s.losses}L</small></div>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* AXIS CHAMPIONS */}
@@ -1917,7 +1975,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
         <div className="ss-hd"><h3>Class MVPs</h3><span>Top scorer from each class</span></div>
         <div className="stat-grid">
           {classMVPs.map(m => (
-            <div key={m.class} className="stat-mvp">
+            <div key={m.class} className="stat-mvp clickable" onClick={() => setDrilldown({ kind: 'scholar', code: m.code })}>
               <div className="stat-mvp-cls">Class {m.class}</div>
               <div className="stat-mvp-code">{m.code}</div>
               <div className="stat-mvp-name">{m.name || '—'}</div>
@@ -1932,7 +1990,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
         <div className="ss-hd"><h3>All-tournament team</h3><span>Top 6 by total points, regardless of class</span></div>
         <div className="stat-grid grid-6">
           {allTournamentTeam.map((s, i) => (
-            <div key={s.code} className="stat-mvp accent-gold">
+            <div key={s.code} className="stat-mvp accent-gold clickable" onClick={() => setDrilldown({ kind: 'scholar', code: s.code })}>
               <div className="stat-mvp-cls">#{i+1} · Class {s.class}</div>
               <div className="stat-mvp-code">{s.code}</div>
               <div className="stat-mvp-name">{s.name || '—'}</div>
@@ -1948,13 +2006,20 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
         <ClassMatrix grid={classMatrix} />
       </section>
 
-      {/* JUDGE SEVERITY */}
+      {/* JUDGE SEVERITY — clickable */}
       <section className="ss">
-        <div className="ss-hd"><h3>Judge severity</h3><span>Average points a judge awards per speaker</span></div>
-        <BarList items={judgeStats.slice().sort((a, b) => a.avgScore - b.avgScore).map(j => ({
-          label: `${j.code} · ${j.name || '—'}`,
-          value: +j.avgScore.toFixed(2), max: 20, sub: `${j.ballots.length} ballots`,
-        }))} color="#efb34a" />
+        <div className="ss-hd"><h3>Judge severity</h3><span>Average points a judge awards per speaker · click to drill</span></div>
+        <div className="s-bars">
+          {judgeStats.slice().sort((a, b) => a.avgScore - b.avgScore).map(j => (
+            <div key={j.code} className="s-bar-row clickable" onClick={() => setDrilldown({ kind: 'judge', code: j.code })}>
+              <div className="s-bar-lbl"><span>{j.code} · {j.name || '—'}</span></div>
+              <div className="s-bar-track">
+                <div className="s-bar-fill" style={{ width: `${(j.avgScore / 20) * 100}%`, background: '#efb34a' }} />
+              </div>
+              <div className="s-bar-val">{j.avgScore.toFixed(2)}<small> · {j.ballots.length} ballots</small></div>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* JUDGE LEAN */}
@@ -2743,7 +2808,7 @@ function StatsTab({ pairings, ballots, rounds, motions }) {
           <thead><tr><th>Rank</th><th>Code</th><th>Name</th><th>R1 → R2 → R3</th><th>Trend</th><th>Total</th></tr></thead>
           <tbody>
             {top10Total.map((s, i) => (
-              <tr key={s.code}>
+              <tr key={s.code} className="tr-clickable" onClick={() => setDrilldown({ kind: 'scholar', code: s.code })}>
                 <td className="rank">{i + 1}</td>
                 <td className="seg">{s.code}</td>
                 <td>{s.name || '—'}</td>
@@ -2880,6 +2945,202 @@ function JourneyTimeline({ steps }) {
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+/* ---------------- DRILLDOWN DRAWER ---------------- */
+function DrilldownDrawer({ drilldown, onClose, allowed, nameByCode, pairings, ballots, motions, semiVotes, axes, axisLabel }) {
+  const PRELIMS = ['R1','R2','R3']
+  const user = allowed.find(u => u.code === drilldown.code)
+  const isJudge = drilldown.kind === 'judge' || /^J\d+$/.test(drilldown.code || '')
+
+  const rounds = isJudge
+    ? pairings.filter(p => p.judge_code === drilldown.code)
+    : pairings.filter(p => p.aff_code === drilldown.code || p.opp_code === drilldown.code)
+  const roundsData = rounds.map(p => {
+    const b = ballots.find(x => x.round_id === p.round_id && x.room === p.room)
+    const motion = motions.find(m => m.id === p.final_motion_id)
+    if (!isJudge && b) {
+      const side = p.aff_code === drilldown.code ? 'aff' : 'opp'
+      const otherSide = side === 'aff' ? 'opp' : 'aff'
+      const scores = axes.map(a => b[`${side}_${a}`] || 0)
+      const otherScores = axes.map(a => b[`${otherSide}_${a}`] || 0)
+      return {
+        p, b, motion, side,
+        oppCode: side === 'aff' ? p.opp_code : p.aff_code,
+        total: scores.reduce((s, n) => s + n, 0),
+        otherTotal: otherScores.reduce((s, n) => s + n, 0),
+        scores, otherScores,
+        won: b.winner === side,
+        note: b[`${side}_note`],
+        forfeit: b.forfeit_side === side,
+        speech_notes: b.speech_notes || {},
+      }
+    }
+    if (isJudge && b) {
+      const affScores = axes.map(a => b[`aff_${a}`] || 0)
+      const oppScores = axes.map(a => b[`opp_${a}`] || 0)
+      return { p, b, motion, affScores, oppScores,
+        affTotal: affScores.reduce((s, n) => s + n, 0),
+        oppTotal: oppScores.reduce((s, n) => s + n, 0),
+        winner: b.winner,
+        forfeit: b.forfeit_side,
+        aff_note: b.aff_note, opp_note: b.opp_note, speech_notes: b.speech_notes || {},
+      }
+    }
+    return { p, motion, none: true }
+  })
+
+  // For semi/final, add votes
+  const semiVoteInfo = ['R4','R5'].map(r => {
+    if (isJudge) {
+      const myVote = semiVotes.find(v => v.judge_code === drilldown.code && v.round_id === r)
+      return { round: r, vote: myVote?.vote || null }
+    }
+    // For scholar: how did panel vote for their room?
+    const p = pairings.find(x => x.round_id === r && (x.aff_code === drilldown.code || x.opp_code === drilldown.code))
+    if (!p) return { round: r, none: true }
+    const side = p.aff_code === drilldown.code ? 'aff' : 'opp'
+    const votes = semiVotes.filter(v => v.round_id === r && v.room === p.room)
+    const myVotes = votes.filter(v => v.vote === side).length
+    const other = votes.filter(v => v.vote !== side).length
+    return { round: r, p, side, myVotes, other, won: myVotes > other, oppCode: side === 'aff' ? p.opp_code : p.aff_code }
+  })
+
+  return (
+    <div className="dd-backdrop" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="dd-drawer">
+        <div className="dd-hd">
+          <div>
+            <span className="kicker">{isJudge ? 'Judge' : 'Scholar'} · drill-down</span>
+            <h2>{drilldown.code} · {user?.name || nameByCode[drilldown.code] || '—'}</h2>
+            <div className="dd-meta">{user?.email || ''}</div>
+          </div>
+          <button className="dd-close" onClick={onClose}>×</button>
+        </div>
+
+        {!isJudge && (
+          <div className="dd-summary">
+            {roundsData.filter(r => !r.none && r.b).length > 0 && (
+              <>
+                <StatCard k="Rounds" v={roundsData.filter(r => !r.none && r.b).length} />
+                <StatCard k="Wins" v={roundsData.filter(r => r.won).length} />
+                <StatCard k="Total pts" v={roundsData.filter(r => !r.none && r.b).reduce((s, r) => s + r.total, 0)} sub="prelims" />
+                <StatCard k="Best round" v={Math.max(...roundsData.filter(r => !r.none && r.b).map(r => r.total))} sub="/20" />
+              </>
+            )}
+          </div>
+        )}
+        {isJudge && (
+          <div className="dd-summary">
+            <StatCard k="Ballots" v={roundsData.filter(r => r.b).length} />
+            <StatCard k="Prop picks" v={roundsData.filter(r => r.winner === 'aff').length} />
+            <StatCard k="Opp picks" v={roundsData.filter(r => r.winner === 'opp').length} />
+            <StatCard k="Semi + Final" v={semiVoteInfo.filter(x => x.vote).length} sub="panel votes cast" />
+          </div>
+        )}
+
+        <div className="dd-scroll">
+          {PRELIMS.map(r => {
+            const d = roundsData.find(x => x.p?.round_id === r)
+            if (!d) return <div key={r} className="dd-round empty">{r} — no assignment</div>
+            if (d.none || !d.b) return <div key={r} className="dd-round empty">{r} — Room #{d.p.room} · no ballot submitted</div>
+            if (!isJudge) return (
+              <div key={r} className={`dd-round ${d.won ? 'won' : 'lost'}`}>
+                <div className="dd-round-hd">
+                  <span className="dd-r">{r}</span>
+                  <span>Room #{d.p.room}</span>
+                  <span className={`fp-side ${d.side}`}>{d.side === 'aff' ? 'PROP' : 'OPP'}</span>
+                  <span>vs {d.oppCode}</span>
+                  <span>Judge {d.p.judge_code}</span>
+                  <span className={`fp-result ${d.won ? 'won' : 'lost'}`}>{d.won ? 'W' : 'L'} · {d.total}/20</span>
+                </div>
+                {d.motion && (
+                  <div className="fp-motion">
+                    <span className="tag" style={{background: d.motion.kind === 'Policy' ? '#1dafec' : d.motion.kind === 'Value' ? '#efb34a' : '#8cc63e'}}>{d.motion.kind}</span>
+                    <span>{d.motion.text}</span>
+                  </div>
+                )}
+                <table className="fmt-table dp-scorecard">
+                  <thead><tr><th></th><th>{drilldown.code}</th><th>{d.oppCode}</th></tr></thead>
+                  <tbody>
+                    {axes.map((a, i) => (
+                      <tr key={a}>
+                        <td className="axis">{axisLabel[a]}</td>
+                        <td className={`score ${d.scores[i] > d.otherScores[i] ? 'higher' : ''}`}>{d.scores[i]}/5</td>
+                        <td className={`score ${d.otherScores[i] > d.scores[i] ? 'higher' : ''}`}>{d.otherScores[i]}/5</td>
+                      </tr>
+                    ))}
+                    <tr className="total-row">
+                      <td>Total</td><td><b>{d.total}/20</b></td><td><b>{d.otherTotal}/20</b></td>
+                    </tr>
+                  </tbody>
+                </table>
+                {d.note && <div className="dp-note-block"><span className="dp-note-label">Judge's note</span><div className="dp-note">"{d.note}"</div></div>}
+                {Object.values(d.speech_notes).some(v => v) && (
+                  <div className="fp-speech-block">
+                    <span className="dp-note-label">Judge's flow (this room)</span>
+                    {Object.entries(d.speech_notes).filter(([_, v]) => v).map(([k, v]) => (
+                      <div key={k} className="fp-speech-item"><b>{k}</b><span>{v}</span></div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+            return (
+              <div key={r} className="dd-round">
+                <div className="dd-round-hd">
+                  <span className="dd-r">{r}</span>
+                  <span>Room #{d.p.room}</span>
+                  <span>{d.p.aff_code} vs {d.p.opp_code}</span>
+                  <span>Winner: {d.winner === 'aff' ? d.p.aff_code : d.p.opp_code}</span>
+                  {d.forfeit && <span className="stat-clutch-margin">Forfeit: {d.forfeit}</span>}
+                </div>
+                {d.motion && (
+                  <div className="fp-motion">
+                    <span className="tag" style={{background: d.motion.kind === 'Policy' ? '#1dafec' : d.motion.kind === 'Value' ? '#efb34a' : '#8cc63e'}}>{d.motion.kind}</span>
+                    <span>{d.motion.text}</span>
+                  </div>
+                )}
+                <table className="fmt-table dp-scorecard">
+                  <thead><tr><th></th><th>Prop · {d.p.aff_code}</th><th>Opp · {d.p.opp_code}</th></tr></thead>
+                  <tbody>
+                    {axes.map((a, i) => (
+                      <tr key={a}>
+                        <td className="axis">{axisLabel[a]}</td>
+                        <td className={`score ${d.affScores[i] > d.oppScores[i] ? 'higher' : ''}`}>{d.affScores[i]}/5</td>
+                        <td className={`score ${d.oppScores[i] > d.affScores[i] ? 'higher' : ''}`}>{d.oppScores[i]}/5</td>
+                      </tr>
+                    ))}
+                    <tr className="total-row"><td>Total</td><td><b>{d.affTotal}/20</b></td><td><b>{d.oppTotal}/20</b></td></tr>
+                  </tbody>
+                </table>
+                {(d.aff_note || d.opp_note) && (
+                  <div className="fp-notes-block">
+                    {d.aff_note && <div className="dp-note"><b>→ {d.p.aff_code}:</b> "{d.aff_note}"</div>}
+                    {d.opp_note && <div className="dp-note"><b>→ {d.p.opp_code}:</b> "{d.opp_note}"</div>}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          {semiVoteInfo.map(x => (
+            <div key={x.round} className={`dd-round ${x.won ? 'won' : ''}`}>
+              <div className="dd-round-hd">
+                <span className="dd-r">{x.round}</span>
+                {isJudge ? (
+                  <span>Panel vote: <b>{x.vote ? (x.vote === 'aff' ? 'PROP' : 'OPP') : '— did not vote'}</b></span>
+                ) : x.none ? (
+                  <span>Did not advance</span>
+                ) : (
+                  <span>{x.side === 'aff' ? 'Prop' : 'Opp'} vs {x.oppCode} · Panel {x.myVotes}–{x.other} · {x.won ? 'W' : 'L'}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

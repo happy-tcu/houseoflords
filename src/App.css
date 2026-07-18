@@ -3958,3 +3958,108 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
 
 /* Sparkline */
 .s-spark { display: block; }
+
+/* Stats filter bar */
+.stats-filters {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+  padding: 14px 16px; margin: -8px 0 20px;
+  background: var(--cream, #fbf7ee);
+  border: 1.5px solid var(--brand-dark, #2b2c2d);
+  box-shadow: 4px 4px 0 var(--brand-dark, #2b2c2d);
+}
+.sf-group { display: flex; gap: 4px; align-items: center; }
+.sf-lbl {
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  color: rgba(43,44,45,0.6); margin-right: 6px;
+}
+.sf-btn {
+  padding: 6px 12px;
+  background: #fff; border: 1.5px solid rgba(43,44,45,0.28); cursor: pointer;
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 11px; letter-spacing: 1px;
+  color: var(--brand-dark, #2b2c2d);
+}
+.sf-btn:hover { border-color: var(--brand-dark, #2b2c2d); }
+.sf-btn.active { background: var(--brand-dark, #2b2c2d); color: #fff; }
+.sf-clear {
+  padding: 6px 12px; margin-left: auto;
+  background: transparent; border: 1.5px solid #b23; color: #b23; cursor: pointer;
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 11px; letter-spacing: 1px;
+}
+.sf-clear:hover { background: #b23; color: #fff; }
+.sf-tip {
+  font-family: 'Open Sans', sans-serif; font-style: italic; font-size: 12px;
+  color: rgba(43,44,45,0.5); margin-left: auto;
+}
+
+/* Clickable rows */
+.s-bar-row.clickable { cursor: pointer; padding: 8px 10px; border-radius: 4px; transition: background 0.15s; }
+.s-bar-row.clickable:hover { background: rgba(140,198,62,0.06); }
+.stat-mvp.clickable { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
+.stat-mvp.clickable:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--brand-dark, #2b2c2d); }
+.stat-mvp.accent-gold.clickable:hover { box-shadow: 6px 6px 0 #a67628; }
+tr.tr-clickable { cursor: pointer; transition: background 0.15s; }
+tr.tr-clickable:hover { background: rgba(140,198,62,0.06); }
+
+/* Drilldown drawer */
+.dd-backdrop {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(43,44,45,0.6);
+  display: flex; justify-content: flex-end;
+}
+.dd-drawer {
+  width: min(720px, 100%); height: 100%;
+  background: #fff;
+  border-left: 1.5px solid var(--brand-dark, #2b2c2d);
+  box-shadow: -12px 0 0 rgba(43,44,45,0.05);
+  display: flex; flex-direction: column;
+  animation: dd-slide-in 0.2s ease-out;
+}
+@keyframes dd-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.dd-hd {
+  padding: 22px 26px 16px;
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+  border-bottom: 1.5px solid rgba(43,44,45,0.14);
+  background: var(--cream, #fbf7ee);
+}
+.dd-hd h2 {
+  font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+  font-weight: 700; font-size: 32px; color: var(--brand-dark, #2b2c2d);
+  margin: 4px 0 0;
+}
+.dd-meta {
+  font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 10px;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: rgba(43,44,45,0.5); margin-top: 4px;
+}
+.dd-close {
+  background: transparent; border: none; cursor: pointer;
+  font-size: 28px; color: var(--brand-dark, #2b2c2d); line-height: 1;
+  padding: 0; width: 32px; height: 32px;
+}
+.dd-summary {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  padding: 16px 26px; border-bottom: 1.5px solid rgba(43,44,45,0.14);
+}
+.dd-scroll { flex: 1; overflow-y: auto; padding: 16px 26px 40px; }
+.dd-round {
+  padding: 16px 18px; margin-bottom: 12px;
+  border: 1.5px solid rgba(43,44,45,0.14);
+  background: #fff;
+}
+.dd-round.won { border-color: var(--brand-green, #8cc63e); background: rgba(140,198,62,0.06); }
+.dd-round.lost { border-color: rgba(178,34,34,0.3); }
+.dd-round.empty { color: rgba(43,44,45,0.5); font-style: italic; padding: 12px 18px; }
+.dd-round-hd {
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  padding-bottom: 10px; margin-bottom: 12px;
+  border-bottom: 1px dashed rgba(43,44,45,0.14);
+  font-family: 'Open Sans', sans-serif; font-size: 13px;
+}
+.dd-r {
+  font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 12px;
+  color: var(--brand-green-2, #7ab332);
+}
