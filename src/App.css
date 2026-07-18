@@ -3367,3 +3367,103 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
   font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 10px;
   text-align: center;
 }
+
+/* Coin flip modal */
+.flip-backdrop {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(43,44,45,0.7);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.flip-modal {
+  max-width: 620px; width: 100%;
+  padding: 40px 44px;
+  background: var(--cream, #fbf7ee);
+  border: 1.5px solid var(--brand-dark, #2b2c2d);
+  box-shadow: 12px 12px 0 var(--brand-dark, #2b2c2d);
+  text-align: center;
+}
+.flip-modal .kicker {
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--brand-green-2, #7ab332);
+}
+.flip-modal h2 {
+  font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+  font-weight: 700; font-size: 48px; margin: 8px 0 32px;
+  color: var(--brand-dark, #2b2c2d);
+}
+.flip-pair {
+  display: grid; grid-template-columns: 1fr 100px 1fr; gap: 16px;
+  align-items: center;
+  padding: 24px 0;
+  margin-bottom: 28px;
+  border-top: 1.5px solid var(--brand-dark, #2b2c2d);
+  border-bottom: 1.5px solid var(--brand-dark, #2b2c2d);
+}
+.flip-slot {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 16px;
+  border: 1.5px solid rgba(43,44,45,0.2);
+  background: #fff;
+  transition: all 0.3s;
+}
+.flip-slot.is-aff { border-color: #1dafec; box-shadow: 4px 4px 0 #1dafec; }
+.flip-slot.is-opp { border-color: #efb34a; box-shadow: 4px 4px 0 #efb34a; }
+.flip-code {
+  font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+  font-weight: 700; font-size: 56px;
+  color: var(--brand-dark, #2b2c2d); line-height: 1;
+}
+.flip-side {
+  padding: 4px 12px;
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+}
+.flip-side.aff { background: #1dafec; color: #fff; }
+.flip-side.opp { background: #efb34a; color: #fff; }
+
+.flip-coin {
+  display: flex; align-items: center; justify-content: center;
+}
+.coin {
+  width: 80px; height: 80px; position: relative;
+  transform-style: preserve-3d;
+  transition: transform 1s ease-out;
+}
+.flip-modal.spinning .coin {
+  animation: coin-spin 2s ease-out;
+}
+@keyframes coin-spin {
+  0%   { transform: rotateY(0deg); }
+  100% { transform: rotateY(2160deg); }
+}
+.coin .face {
+  position: absolute; inset: 0; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic;
+  font-weight: 700; font-size: 40px;
+  backface-visibility: hidden;
+}
+.coin .heads { background: #1dafec; color: #fff; }
+.coin .tails { background: #efb34a; color: #fff; transform: rotateY(180deg); }
+
+.flip-actions {
+  display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+}
+.flip-actions .btn-primary,
+.flip-actions .btn-secondary {
+  padding: 14px 22px;
+  font-family: 'Montserrat', sans-serif; font-weight: 800;
+  font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase;
+  cursor: pointer; border: none;
+}
+.flip-actions .btn-primary { background: var(--brand-dark, #2b2c2d); color: #fff; }
+.flip-actions .btn-primary:hover { background: var(--brand-green-2, #7ab332); }
+.flip-actions .btn-secondary { background: transparent; border: 1.5px solid var(--brand-dark, #2b2c2d); color: var(--brand-dark, #2b2c2d); }
+.flip-actions .btn-secondary:hover { background: var(--brand-dark, #2b2c2d); color: #fff; }
+@media (max-width: 700px) {
+  .flip-pair { grid-template-columns: 1fr; }
+  .flip-modal h2 { font-size: 36px; }
+  .flip-code { font-size: 40px; }
+}

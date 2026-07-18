@@ -670,6 +670,7 @@ function StandingsTab({ pairings, ballots }) {
     return out
   }, [semiVotes, pairings])
 
+  const [flipModal, setFlipModal] = useState(null)  // { w1, w2, aff, opp, spinning }
   async function fillFinal() {
     const w1 = semiWinners[1]?.winner
     const w2 = semiWinners[2]?.winner
@@ -677,16 +678,33 @@ function StandingsTab({ pairings, ballots }) {
       setNote('Cannot fill — semi winners not decided yet. Need majority (≥8) in each panel.')
       return
     }
-    if (!confirm(`Fill R5 final:\n\nProp: ${w1} (Semi 1 winner)\nOpp: ${w2} (Semi 2 winner)\n\nProceed?`)) return
+    // Open coin-flip modal — no side is chosen yet.
+    setFlipModal({ w1, w2, aff: null, opp: null, spinning: false })
+  }
+  async function doFlip() {
+    if (!flipModal) return
+    setFlipModal(m => ({ ...m, spinning: true }))
+    // 2s of theatre, then RNG.
+    await new Promise(r => setTimeout(r, 2000))
+    const propWins = Math.random() < 0.5
+    const aff = propWins ? flipModal.w1 : flipModal.w2
+    const opp = propWins ? flipModal.w2 : flipModal.w1
+    setFlipModal(m => ({ ...m, spinning: false, aff, opp }))
+  }
+  async function commitFlip() {
+    if (!flipModal?.aff || !flipModal?.opp) return
     setBusy(true); setNote(null)
-    // Delete any existing R5 pairing then insert.
     await supabase.from('pairings').delete().eq('round_id', 'R5')
     const { error } = await supabase.from('pairings').insert({
-      round_id: 'R5', room: 1, aff_code: w1, opp_code: w2, judge_code: 'J1', strike_turn: 'opp',
+      round_id: 'R5', room: 1, aff_code: flipModal.aff, opp_code: flipModal.opp,
+      judge_code: 'J1', strike_turn: 'opp',
     })
     setBusy(false)
     if (error) setNote(`Error: ${error.message}`)
-    else setNote(`R5 pairing set: ${w1} (Prop) vs ${w2} (Opp)`)
+    else {
+      setNote(`R5 pairing set: ${flipModal.aff} (Prop) vs ${flipModal.opp} (Opp)`)
+      setFlipModal(null)
+    }
   }
   const stats = useMemo(() => {
     const s = {}   // { code: { wins, points, appearances } }
@@ -717,12 +735,59 @@ function StandingsTab({ pairings, ballots }) {
               title={semiWinners[1]?.decided && semiWinners[2]?.decided
                 ? `Semi 1: ${semiWinners[1].winner} · Semi 2: ${semiWinners[2].winner}`
                 : `Semi 1: ${semiWinners[1]?.affN||0}-${semiWinners[1]?.oppN||0} · Semi 2: ${semiWinners[2]?.affN||0}-${semiWinners[2]?.oppN||0}`}>
-        Fill R5 final
+        Fill R5 (coin flip)
         {semiWinners[1]?.decided && semiWinners[2]?.decided && (
           <span style={{marginLeft: 8, fontSize: 10}}>{semiWinners[1].winner} vs {semiWinners[2].winner}</span>
         )}
       </button>
     </div>
+
+    {flipModal && (
+      <div className="flip-backdrop" onClick={e => { if (e.target === e.currentTarget) setFlipModal(null) }}>
+        <div className={`flip-modal ${flipModal.spinning ? 'spinning' : ''} ${flipModal.aff ? 'revealed' : ''}`}>
+          <span className="kicker">The Final · Coin Flip</span>
+          <h2>{flipModal.aff ? 'Sides set.' : flipModal.spinning ? 'Flipping…' : 'Ready to flip.'}</h2>
+          <div className="flip-pair">
+            <div className={`flip-slot ${flipModal.aff === flipModal.w1 ? 'is-aff' : flipModal.opp === flipModal.w1 ? 'is-opp' : ''}`}>
+              <span className="flip-code">{flipModal.w1}</span>
+              {flipModal.aff && (
+                <span className={`flip-side ${flipModal.aff === flipModal.w1 ? 'aff' : 'opp'}`}>
+                  {flipModal.aff === flipModal.w1 ? 'PROP' : 'OPP'}
+                </span>
+              )}
+            </div>
+            <div className="flip-coin">
+              <div className="coin"><span className="face heads">P</span><span className="face tails">O</span></div>
+            </div>
+            <div className={`flip-slot ${flipModal.aff === flipModal.w2 ? 'is-aff' : flipModal.opp === flipModal.w2 ? 'is-opp' : ''}`}>
+              <span className="flip-code">{flipModal.w2}</span>
+              {flipModal.aff && (
+                <span className={`flip-side ${flipModal.aff === flipModal.w2 ? 'aff' : 'opp'}`}>
+                  {flipModal.aff === flipModal.w2 ? 'PROP' : 'OPP'}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flip-actions">
+            {!flipModal.aff ? (
+              <>
+                <button className="btn-primary" onClick={doFlip} disabled={flipModal.spinning}>
+                  {flipModal.spinning ? 'Flipping…' : 'Flip the coin'}
+                </button>
+                <button className="btn-secondary" onClick={() => setFlipModal(null)}>Cancel</button>
+              </>
+            ) : (
+              <>
+                <button className="btn-primary" onClick={commitFlip} disabled={busy}>
+                  Lock it in · {flipModal.aff} (Prop) vs {flipModal.opp} (Opp)
+                </button>
+                <button className="btn-secondary" onClick={() => setFlipModal(m => ({ ...m, aff: null, opp: null }))}>Flip again</button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
     {stats.length === 0 ? (
       <div className="portal-empty"><b>No results yet.</b><span>Standings populate as ballots come in.</span></div>
     ) : (
